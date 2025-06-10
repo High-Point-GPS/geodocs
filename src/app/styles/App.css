@@ -1,0 +1,30 @@
+
+.errorText {
+	color: red;
+}
+
+.successText {
+	color: green;
+}
+
+.pagenation-foot {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.cell-overflow {
+	text-overflow: ellipsis;
+}
+
+.sticky {
+	position: sticky !important;
+	left: 0;
+	top: 0;
+	z-index: 1;
+	background-color: white;
+}
+
+.dropdown-content {
+	z-index: 50 !important;
+}

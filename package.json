@@ -1,0 +1,108 @@
+{
+	"name": "hpgpsFilemanager",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"preinstall": "npm install --package-lock-only --ignore-scripts && npx npm-force-resolutions",
+		"build:template": "node ./utils/templateBuilder.js",
+		"template": "start-server-and-test serve http://localhost:9000 build:template",
+		"build": "webpack --mode production --config webpack.production.js",
+		"serve": "webpack serve --mode development --config webpack.development.js",
+		"test": "start-server-and-test serve http://localhost:9000 mocha",
+		"mocha": "mocha test/**/*.js",
+		"zip": "node zip.util.js",
+		"build-dev": "webpack --mode=production --config webpack.local.js"
+	},
+	"resolutions": {
+		"semver-regex": "4.0.1"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@babel/core": "^7.22.5",
+		"@babel/eslint-parser": "^7.22.5",
+		"@babel/preset-env": "^7.22.5",
+		"@babel/preset-react": "^7.22.5",
+		"archiver": "^5.3.0",
+		"babel-loader": "^8.3.0",
+		"before-build-webpack": "^0.2.11",
+		"chai": "^4.3.4",
+		"copy-webpack-plugin": "9.0.1",
+		"css": "^3.0.0",
+		"css-loader": "^6.5.1",
+		"css-minimizer-webpack-plugin": "^3.1.1",
+		"eslint": "^8.1.0",
+		"eslint-webpack-plugin": "^3.1.0",
+		"html-loader": "^3.0.0",
+		"html-webpack-plugin": "^5.4.0",
+		"image-minimizer-webpack-plugin": "^2.2.0",
+		"imagemin-gifsicle": "^7.0.0",
+		"imagemin-mozjpeg": "^9.0.0",
+		"imagemin-pngquant": "^9.0.2",
+		"imagemin-svgo": "^9.0.0",
+		"mini-css-extract-plugin": "^2.4.7",
+		"mocha": "^9.1.3",
+		"puppeteer": "^10.4.0",
+		"regenerator-runtime": "^0.13.9",
+		"semver-regex": "^4.0.5",
+		"start-server-and-test": "<=1.14.0",
+		"style-loader": "^3.3.1",
+		"svg-inline-loader": "^0.8.2",
+		"terser-webpack-plugin": "^5.2.4",
+		"webpack": "^5.88.1",
+		"webpack-cli": "^4.10.0",
+		"webpack-dev-server": "^4.15.1",
+		"webpack-merge": "^5.8.0",
+		"webpack-remove-empty-scripts": "^0.7.1"
+	},
+	"eslintConfig": {
+		"parser": "@babel/eslint-parser",
+		"parserOptions": {
+			"sourceType": "module",
+			"ecmaVersion": 2017
+		},
+		"env": {
+			"es6": true,
+			"node": true,
+			"browser": true
+		},
+		"rules": {
+			"quotes": [
+				2,
+				"single"
+			],
+			"no-alert": 2
+		},
+		"globals": {
+			"geotab": true,
+			"dialogPolyfill": true,
+			"GeotabApi": true,
+			"rison": true
+		}
+	},
+	"mocha": {
+		"timeout": 10000,
+		"reporter": "nyan"
+	},
+	"dependencies": {
+		"@emotion/react": "^11.13.0",
+		"@emotion/styled": "^11.13.0",
+		"@fontsource/roboto": "^5.0.5",
+		"@mui/icons-material": "^5.14.0",
+		"@mui/material": "^5.16.7",
+		"@mui/x-date-pickers": "^7.13.0",
+		"@tanstack/match-sorter-utils": "^8.8.4",
+		"@tanstack/react-table": "^8.9.3",
+		"dayjs": "^1.11.12",
+		"filepond": "^4.30.4",
+		"firebase": "^9.23.0",
+		"rc-tree-select": "^5.10.0",
+		"react": "^18.2.0",
+		"react-csv": "^2.2.2",
+		"react-dom": "^18.2.0",
+		"react-dropdown-tree-select": "^2.8.0",
+		"react-filepond": "^7.1.2"
+	}
+}
