@@ -20,6 +20,7 @@ import '../../../styles/app.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
 
+
 const Uploader = ({
     database,
     onFileUploaded,
@@ -29,6 +30,7 @@ const Uploader = ({
     editFile,
     onEditComplete,
     onValidationError,
+    databaseConfig
 }) => {
     const [uploadFiles, setUploadFiles] = useState([]);
     const [geotabData, setGeotabData] = useState({
@@ -371,6 +373,10 @@ const Uploader = ({
         return response.json();
     };
 
+    const findDevice = (inputDevice, billingDevices) => {
+        return billingDevices.findIndex(x => x.serialNumber === inputDevice.serialNumber) !== -1;
+    }
+
     useEffect(() => {
         if (api) {
             api.multiCall(
@@ -394,25 +400,71 @@ const Uploader = ({
                     ],
                     ['Get', { typeName: 'Trailer' }],
                     ['Get', { typeName: 'Group' }],
+                 
                 ],
                 function (results) {
-                    const filteredDevices = results[0].filter(
-                        (res) => res.engineVehicleIdentificationNumber !== '?'
+                    let filteredDevices = results[0].filter(
+                        (res) => res.vehicleIdentificationNumber !== ''
                     );
                     const trailerNames = results[2].map(t => t.id);
-                    const activeTrailers = results[0].filter(res => {
+                    let activeTrailers = results[0].filter(res => {
                         const isActive = new Date(res.activeTo) > new Date();
                         const isId = res.tmpTrailerId && trailerNames.findIndex(t => t === res.tmpTrailerId) !== -1
                         return isActive && isId;
                     });
 
-                    const formatedData = formatGeotabData(
-                        filteredDevices,
-                        results[1],
-                        activeTrailers,
-                        results[3]
-                    );
-                    setGeotabData(formatedData);
+                    if (!databaseConfig.directBilling) {
+                        api.call('Get', { typeName: 'AddInDeviceLink',
+                        search: {
+                            addInSearch: {
+                                configuration: {
+                                    solutionId: 'highPointsGPSGeoDocs'
+                                }
+                            }
+                        },
+                        credentials: {
+                            database: database,
+                            sessionId: session.sessionId,
+                            userName:  session.userName,
+                        }
+                        },(result) => {
+                                const marketDevices = result.map(x => {
+                                return {
+                                    ...x.device
+                                }
+                            });
+
+                            filteredDevices = filteredDevices.filter(res => findDevice(res, marketDevices));
+                            activeTrailers = activeTrailers.filter(res => findDevice(res, marketDevices));
+
+                              const formatedData = formatGeotabData(
+                                filteredDevices,
+                                results[1],
+                                activeTrailers,
+                                results[3]
+                            );
+                            setGeotabData(formatedData);
+                        },  function (error) {
+                            const formatedData = formatGeotabData(
+                                filteredDevices,
+                                results[1],
+                                activeTrailers,
+                                results[3]
+                            );
+                            setGeotabData(formatedData);
+                        } )
+
+                      
+                    } else {
+                        const formatedData = formatGeotabData(
+                            filteredDevices,
+                            results[1],
+                            activeTrailers,
+                            results[3]
+                        );
+                        setGeotabData(formatedData);
+                    }
+                
                 },
                 function (error) {
                     console.log(error);

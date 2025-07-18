@@ -16,6 +16,7 @@ const App = ({ api, database, session, server }) => {
 	const [mobile, setMobile] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [validationError, setValidationError] = useState(false);
+	const [databaseConfig, setDatabaseConfig] = useState({});
 
 	const handeEditFile = (fileData) => {
 		setEditFile({ ...fileData });
@@ -67,6 +68,21 @@ const App = ({ api, database, session, server }) => {
 		
 		try {
 			setLoading(true);
+
+			// get config
+			const configResponse = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/getDatabaseConfig',
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json'
+				},
+				body: JSON.stringify(messageBody)
+			});
+
+			const config = await configResponse.json();
+
+			setDatabaseConfig(config);
 
 			const response = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/fetchDocumentsForDatabase',
 			{
@@ -170,6 +186,7 @@ const App = ({ api, database, session, server }) => {
 						onValidationError={() => setValidationError(true)}
 						editFile={editFile}
 						onEditComplete={handleFileEditComplete}
+						databaseConfig={databaseConfig}
 					/>
 						{mobile ? <DocumentMobile files={tableFiles} /> : <DocumentTable files={tableFiles} />}
 				</>
