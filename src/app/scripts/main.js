@@ -113,7 +113,6 @@ geotab.addin.hpgpsFilemanager = function () {
     'use strict';
 
     // the root container
-    var elAddin = document.getElementById('hpgpsFilemanager');
 
     return {
         /**
@@ -128,9 +127,6 @@ geotab.addin.hpgpsFilemanager = function () {
          */
         initialize: function (freshApi, freshState, initializeCallback) {
             // Loading translations if available
-            if (freshState.translate) {
-                freshState.translate(elAddin || '');
-            }
 
             freshApi.getSession(async (session, server) => {
                     Object.assign(sessionInfo, {
@@ -171,7 +167,6 @@ geotab.addin.hpgpsFilemanager = function () {
         focus: function (freshApi, freshState) {
             // getting the current user to display in the UI
             freshApi.getSession(async (session, server) => {
-                elAddin.className = '';
                 // show main content
                 const container = document.getElementById('app');
 
@@ -194,7 +189,6 @@ geotab.addin.hpgpsFilemanager = function () {
          */
         blur: function () {
             // hide main content
-            elAddin.className += ' hidden';
         },
     };
 };
