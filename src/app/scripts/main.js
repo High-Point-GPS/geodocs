@@ -35,10 +35,36 @@ const handleButtonClick = async (buttonValue, api) => {
         redirectToDashboard();
     } else if (buttonValue === 'Accept') {
         try {
-            const currentDate = new Date().toISOString();
-            await addAddinData(addinId, { userName: sessionInfo.userName, acceptedDate: currentDate }, api);
+            // Replace with your actual Firebase endpoint URL
+            const endpoint = 'https://us-central1-geotabfiles.cloudfunctions.net/addEulaUser';
+
+            // Get session info if not already available
+            const session = sessionInfo.sessionId || (await new Promise(resolve => {
+                api.getSession((sess) => resolve(sess.sessionId));
+            }));
+            const database = sessionInfo.database;
+            const username = sessionInfo.userName;
+
+            if (!session || !database || !username) {
+                throw new Error('Missing session, database, or username');
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session: sessionInfo,
+                    database,
+                    username
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server responded with ${response.status}`);
+            }
+
             location.reload(true);
-            
+
         } catch (error) {
             console.error('Error in handleButtonClick:', error);
         }
@@ -53,38 +79,29 @@ const redirectToDashboard = () => {
     }
 };
 
-const isEulaAccepted = (userName, addinId, api) => {
-    return new Promise((resolve, reject) => {
-        api.call('Get', {
-            'typeName': 'AddInData',
-            'search': { 'addInId': addinId, 'selectClause': 'acceptedDate', 'whereClause': `userName = "${userName}"` }
-        }, (result) => {
-            if (result.length > 0) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        }, (error) => {
-            console.error('Failed to get EULA acceptance:', error);
-            reject(error);
-        });
-    });
-};
+const isEulaAccepted = async (userName, api) => {
+    const endpoint = 'https://us-central1-geotabfiles.cloudfunctions.net/checkEula';
 
-const addAddinData = async (addInId, details, api) => {
     try {
-        await new Promise((resolve, reject) => {
-            api.call('Add', {
-                'typeName': 'AddInData',
-                'entity': { 'addInId': addInId, 'details': details }
-            }, (res, err) => {
-                if (err) reject(err);
-                else resolve(res);
-            });
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session: sessionInfo,
+                database: sessionInfo.database,
+                username: userName
+            })
         });
+
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}`);
+        }
+
+        const data = await response.json();
+        return !!data.eulaAccepted;
     } catch (error) {
-        console.error('Error adding add-in data:', error);
-        throw error;
+        console.error('Failed to check EULA acceptance:', error);
+        return false;
     }
 };
 
@@ -115,27 +132,27 @@ geotab.addin.hpgpsFilemanager = function () {
                 freshState.translate(elAddin || '');
             }
 
-            // freshApi.getSession(async (session, server) => {
-            //         Object.assign(sessionInfo, {
-            //         database: session.database,
-            //         userName: session.userName,
-            //         sessionId: session.sessionId,
-            //         server: server
-            //     });
+            freshApi.getSession(async (session, server) => {
+                    Object.assign(sessionInfo, {
+                    database: session.database,
+                    userName: session.userName,
+                    sessionId: session.sessionId,
+                    server: server
+                });
 
-            //     // const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, api);
+                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, freshApi);
 
-            //     // if (!eulaAcceptanceStatus) {
-            //     //     showModal(true);
-            //     // } else {
-            //     //     showModal(false);
-            //     // }
+                if (!eulaAcceptanceStatus) {
+                    showModal(true);
+                } else {
+                    showModal(false);
+                }
 
 
-            // });
+            });
 
-            // elements.acceptButton.addEventListener('click', () => handleButtonClick('Accept', api));
-            // elements.declineButton.addEventListener('click', () => handleButtonClick('Decline', api));
+            elements.acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
+            elements.declineButton.addEventListener('click', () => handleButtonClick('Decline', freshApi));
             // MUST call initializeCallback when done any setup
             initializeCallback();
         },
@@ -160,8 +177,8 @@ geotab.addin.hpgpsFilemanager = function () {
                 // show main content
                 const container = document.getElementById('app');
 
-                // const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, api);
-                const eulaAcceptanceStatus = true;
+                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, freshApi);
+
                 if (container && eulaAcceptanceStatus) {
                     const root = createRoot(container);
                     root.render(<App api={freshApi} database={session.database} session={session} server={server} />);
