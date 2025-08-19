@@ -158,7 +158,7 @@ const App = ({ api, database, session, server }) => {
 	}, []);
 
 	return (
-		<Box id="HPGPS"
+		<Box
 		sx={{
 			display: 'flex',
 			flexDirection: 'column',
