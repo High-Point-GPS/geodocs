@@ -8,23 +8,15 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
-
-
 const sessionInfo = {};
-const addinId = 'amE0ZGVhYmYtZDQ5NS0xNGN';
-
-
-const elements = {
-    eulaModalBackdrop: document.getElementById('eula-modal-backdrop'),
-    eulaModal: document.getElementById('eula-modal'),
-    eulaMessageDiv: document.getElementById('eula-message'),
-    acceptButton: document.getElementById('eula-accept-button'),
-    declineButton: document.getElementById('eula-decline-button'),
-    //mainUiDiv: document.getElementById('main-ui')
-};
 
 const showModal = (shouldShow) => {
-    elements.eulaModalBackdrop.style.display = shouldShow ? 'flex' : 'none';
+   	const backdrop = document.getElementById('eula-modal-backdrop');
+
+	if (backdrop) {
+		backdrop.style.display = shouldShow ? 'flex' : 'none';
+	}
+	
     return shouldShow;
 };
 
@@ -79,7 +71,7 @@ const redirectToDashboard = () => {
     }
 };
 
-const isEulaAccepted = async (userName, api) => {
+const isEulaAccepted = async (userName) => {
     const endpoint = 'https://us-central1-geotabfiles.cloudfunctions.net/checkEula';
 
     try {
@@ -136,7 +128,7 @@ geotab.addin.hpgpsFilemanager = function () {
                     server: server
                 });
 
-                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, freshApi);
+                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
 
                 if (!eulaAcceptanceStatus) {
                     showModal(true);
@@ -144,13 +136,18 @@ geotab.addin.hpgpsFilemanager = function () {
                     showModal(false);
                 }
 
+                
+				const acceptButton = document.getElementById('eula-accept-button');
+				const declineButton = document.getElementById('eula-decline-button');
+				acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
+				declineButton.addEventListener('click', () => handleButtonClick('Decline', freshApi));
 
-            });
-
-            elements.acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
-            elements.declineButton.addEventListener('click', () => handleButtonClick('Decline', freshApi));
+                    
             // MUST call initializeCallback when done any setup
             initializeCallback();
+            });
+
+
         },
 
         /**
@@ -170,7 +167,7 @@ geotab.addin.hpgpsFilemanager = function () {
                 // show main content
                 const container = document.getElementById('app');
 
-                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName, addinId, freshApi);
+                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
 
                 if (container && eulaAcceptanceStatus) {
                     const root = createRoot(container);
