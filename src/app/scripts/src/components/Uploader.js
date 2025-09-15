@@ -418,7 +418,7 @@ const Uploader = ({
                         search: {
                             addInSearch: {
                                 configuration: {
-                                    solutionId: 'highPointsGPSGeoDocs'
+                                    solutionId: 'geotabInc.SoftwareOrderNowTestSolution'
                                 }
                             }
                         },
