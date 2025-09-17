@@ -5,7 +5,7 @@ import Uploader from './components/Uploader';
 import DocumentTable from './components/DocumentTabel';
 import FileActions from './components/FileActions';
 
-import '../../styles/app.css';
+import '../../styles/app-styles.css';
 
 import DocumentMobile from './components/DocumentMobile';
 

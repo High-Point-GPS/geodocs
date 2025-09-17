@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
 
-import '../../../styles/app.css';
+import '../../../styles/app-styles.css';
 
 const Popup = ({ open, children }) => {
 	return open ? (

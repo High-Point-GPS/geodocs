@@ -33,7 +33,7 @@ import {
 
 import { columns, stringMatchFilter, globalStringFilter } from '../utils/tabel-helper';
 
-import '../../../styles/app.css';
+import '../../../styles/app-styles.css';
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 

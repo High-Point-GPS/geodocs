@@ -16,7 +16,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Button } from '@mui/material';
 import { FilePond } from 'react-filepond';
-import '../../../styles/app.css';
+import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
 
