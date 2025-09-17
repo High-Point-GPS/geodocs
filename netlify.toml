@@ -15,4 +15,4 @@
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     
     # Solves: The CORS error from my.geotab.com
-    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Origin = "https://my.geotab.com"
