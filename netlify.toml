@@ -1,0 +1,18 @@
+# This section handles the redirect for your React app's routing, preventing 404 errors.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# This section adds all the required headers to every page on your site.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Solves: "The X-Content-Type-Options header is not set."
+    X-Content-Type-Options = "nosniff"
+    
+    # Solves: "The Strict-Transport-Security HTTP header is not defined."
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    
+    # Solves: The CORS error from my.geotab.com
+    Access-Control-Allow-Origin = "https://my.geotab.com"
