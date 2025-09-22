@@ -8,6 +8,7 @@ import {
     Radio,
     TextField,
     Switch,
+    IconButton
 } from '@mui/material';
 import { formatGeotabData, formatOptions } from '../utils/formatter';
 import dayjs from 'dayjs';
@@ -19,6 +20,7 @@ import { FilePond } from 'react-filepond';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'; 
 
 
 const Uploader = ({
@@ -581,6 +583,7 @@ const Uploader = ({
         ) : (
             <>
  {!editMode ? (
+             <>
                 <FilePond
                     files={uploadFiles}
                     onupdatefiles={setUploadFiles}
@@ -588,6 +591,16 @@ const Uploader = ({
                     name="files" /* sets the file input name, it's filepond by default */
                     labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span>'
                 />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                        <IconButton
+                            aria-label="Help"
+                            onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
+                            size="large"
+                        >
+                            <HelpOutlineIcon />
+                        </IconButton>
+                    </Box>
+                </>
             ) : (
                 <Box
                     sx={{

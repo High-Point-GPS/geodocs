@@ -66,7 +66,7 @@ const AssociateSelect = ({
 	}, [currentSelections]);
 
 	const updateOptions = () => {
-		if (isGroup || options.length <= 1) {
+		if (isGroup || options.length > 1) {
 			setCurrentOptions([{ label: `All ${label}s`, value: `All ${label}s` }, ...options]);
 		} else {
 			setCurrentOptions([...options]);
