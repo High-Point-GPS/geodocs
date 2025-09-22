@@ -8,7 +8,8 @@ import {
     Radio,
     TextField,
     Switch,
-    IconButton
+    IconButton,
+    Tooltip
 } from '@mui/material';
 import { formatGeotabData, formatOptions } from '../utils/formatter';
 import dayjs from 'dayjs';
@@ -592,13 +593,16 @@ const Uploader = ({
                     labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span>'
                 />
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                        <IconButton
-                            aria-label="Help"
-                            onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
-                            size="large"
-                        >
-                            <HelpOutlineIcon />
-                        </IconButton>
+                        <Tooltip title="More Info" arrow>
+                            <IconButton
+                                aria-label="Help"
+                                onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
+                                size="large"
+                                color='primary'
+                            >
+                                <HelpOutlineIcon />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </>
             ) : (
