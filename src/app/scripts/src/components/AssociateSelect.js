@@ -51,23 +51,27 @@ const AssociateSelect = ({
 		} else {
 			onUpdateUploadSelections([]);
 			onUpdateCurrentSelections([]);
-			setCurrentOptions([{ label: `All ${label}s`, value: `All ${label}s` }, ...options]);
+			updateOptions();
 		}
 	};
 
 	useEffect(() => {
-		if (isGroup) {
-			setCurrentOptions([...options]);
-		} else {
-			setCurrentOptions([{ label: `All ${label}s`, value: `All ${label}s` }, ...options]);
-		}
+		updateOptions();
 	}, [options]);
 
 	useEffect(() => {
 		if (currentSelections.length === 0) {
-			setCurrentOptions([{ label: `All ${label}s`, value: `All ${label}s` }, ...options]);
+			updateOptions();
 		}
 	}, [currentSelections]);
+
+	const updateOptions = () => {
+		if (isGroup || options.length <= 1) {
+			setCurrentOptions([{ label: `All ${label}s`, value: `All ${label}s` }, ...options]);
+		} else {
+			setCurrentOptions([...options]);
+		}
+	}
 
 	return (
 		<Box sx={{ width: { xs: '100%', sm: '100%', md: selectWidth } }}>
