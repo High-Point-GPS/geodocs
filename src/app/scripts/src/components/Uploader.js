@@ -421,7 +421,7 @@ const Uploader = ({
                         search: {
                             addInSearch: {
                                 configuration: {
-                                    solutionId: 'geotabInc.SoftwareOrderNowTestSolution'
+                                    solutionId: 'highPointsGPSGeoDocs™'
                                 }
                             }
                         },
@@ -448,16 +448,15 @@ const Uploader = ({
                             );
                             setGeotabData(formatedData);
                         },  function (error) {
-                            const formatedData = formatGeotabData(
-                                filteredDevices,
-                                results[1],
-                                activeTrailers,
-                                results[3]
-                            );
-                            setGeotabData(formatedData);
+                            setError('Error: Could not find AddIn Device Links. Please contact support.');
+                            // const formatedData = formatGeotabData(
+                            //     filteredDevices,
+                            //     results[1],
+                            //     activeTrailers,
+                            //     results[3]
+                            // );
+                            // setGeotabData(formatedData);
                         } )
-
-                      
                     } else {
                         const formatedData = formatGeotabData(
                             filteredDevices,
