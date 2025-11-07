@@ -68,7 +68,7 @@ const App = ({ api, database, session, server }) => {
 
 
 	const handleFilesUploaded = (docs) => {
-		const newFiles = [...files, ...docs];
+		const newFiles = [...docs, ...files];
 		setFiles(newFiles);
 	};
 
@@ -191,40 +191,40 @@ const App = ({ api, database, session, server }) => {
 					return isActive && isId;
 				});
 
-				// if (!databaseConfig.directBilling) {
-				// 	api.call(
-				// 		'Get',
-				// 		{
-				// 			typeName: 'AddInDeviceLink',
-				// 			search: {
-				// 				addInSearch: {
-				// 					configuration: {
-				// 						solutionId: 'highPointsGPSGeoDocs™',
-				// 					},
-				// 				},
-				// 			},
-				// 		credentials: {
-				// 			database: database,
-				// 			sessionId: session.sessionId,
-				// 			userName: session.userName,
-				// 		},
-				// 		},
-				// 		(result) => {
-				// 			const marketDevices = result.map((x) => ({ ...x.device }));
-				// 			filteredDevices = filteredDevices.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
-				// 			activeTrailers = activeTrailers.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
+				if (!databaseConfig.directBilling) {
+					api.call(
+						'Get',
+						{
+							typeName: 'AddInDeviceLink',
+							search: {
+								addInSearch: {
+									configuration: {
+										solutionId: 'highPointsGPSGeoDocs™',
+									},
+								},
+							},
+						credentials: {
+							database: database,
+							sessionId: session.sessionId,
+							userName: session.userName,
+						},
+						},
+						(result) => {
+							const marketDevices = result.map((x) => ({ ...x.device }));
+							filteredDevices = filteredDevices.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
+							activeTrailers = activeTrailers.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
 
-				// 			const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
-				// 			setGeotabData(formatedData);
-				// 		},
-				// 		function (error) {
-				// 			console.error('Error: Could not find AddIn Device Links.', error);
-				// 		}
-				// 	);
-				// } else {
+							const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
+							setGeotabData(formatedData);
+						},
+						function (error) {
+							console.error('Error: Could not find AddIn Device Links.', error);
+						}
+					);
+				} else {
 					const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
 					setGeotabData(formatedData);
-				//}
+				}
 			},
 			function (error) {
 				console.log(error);
