@@ -7,6 +7,7 @@ import {
     AccordionActions,
     Typography,
     Chip,
+    Button,
 } from '@mui/material';
 import DebouncedInput from './DebouncedInput';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -14,7 +15,7 @@ import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
-const DocumentMobile = ({ files }) => {
+const DocumentMobile = ({ files, onOpenUploader }) => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [filterFiles, setFilterFiles] = useState([]);
@@ -40,14 +41,15 @@ const DocumentMobile = ({ files }) => {
                 marginTop: '2rem',
             }}
         >
-            <Box sx={{ display: 'flex', gap: '1rem' }}>
-                <Box sx={{ flex: 2 }}>
+            <Box sx={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ flex: 1 }}>
                     <DebouncedInput
                         value={globalFilter ?? ''}
                         onChange={(value) => setGlobalFilter(String(value))}
                         placeholder="Search all columns..."
                     />
                 </Box>
+
 
                 <Box
                     sx={{

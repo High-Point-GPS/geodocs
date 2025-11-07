@@ -21,7 +21,7 @@ import { FilePond } from 'react-filepond';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline'; 
+
 
 
 const Uploader = ({
@@ -33,15 +33,13 @@ const Uploader = ({
     editFile,
     onEditComplete,
     onValidationError,
-    databaseConfig
+    databaseConfig,
+    geotabData: geotabDataProp,
+    setGeotabData: setGeotabDataProp,
 }) => {
     const [uploadFiles, setUploadFiles] = useState([]);
-    const [geotabData, setGeotabData] = useState({
-        vehicles: [],
-        drivers: [],
-        trailers: [],
-        groups: [],
-    });
+    const geotabData = geotabDataProp || { vehicles: [], drivers: [], trailers: [], groups: [] };
+    const setGeotabData = setGeotabDataProp || (() => {});
     const [uploadData, setUploadData] = useState({
         vehicles: [],
         drivers: [],
@@ -377,103 +375,8 @@ const Uploader = ({
     };
 
     const findDevice = (inputDevice, billingDevices) => {
-        return billingDevices.findIndex(x => x.serialNumber === inputDevice.serialNumber) !== -1;
-    }
-
-    useEffect(() => {
-        if (api) {
-            api.multiCall(
-                [
-                    [
-                        'Get',
-                        {
-                            typeName: 'Device',
-                            search: { fromDate: new Date().toISOString() },
-                        },
-                    ],
-                    [
-                        'Get',
-                        {
-                            typeName: 'User',
-                            search: {
-                                isDriver: true,
-                                fromDate: new Date().toISOString(),
-                            },
-                        },
-                    ],
-                    ['Get', { typeName: 'Trailer' }],
-                    ['Get', { typeName: 'Group' }],
-                 
-                ],
-                function (results) {
-                    let filteredDevices = results[0].filter(
-                        (res) => res.vehicleIdentificationNumber !== ''
-                    );
-                    const trailerNames = results[2].map(t => t.id);
-                    let activeTrailers = results[0].filter(res => {
-                        const isActive = new Date(res.activeTo) > new Date();
-                        const isId = res.tmpTrailerId && trailerNames.findIndex(t => t === res.tmpTrailerId) !== -1
-                        return isActive && isId;
-                    });
-
-                    if (!databaseConfig.directBilling) {
-                        api.call('Get', { typeName: 'AddInDeviceLink',
-                        search: {
-                            addInSearch: {
-                                configuration: {
-                                    solutionId: 'highPointsGPSGeoDocs™'
-                                }
-                            }
-                        },
-                        credentials: {
-                            database: database,
-                            sessionId: session.sessionId,
-                            userName:  session.userName,
-                        }
-                        },(result) => {
-                                const marketDevices = result.map(x => {
-                                return {
-                                    ...x.device
-                                }
-                            });
-
-                            filteredDevices = filteredDevices.filter(res => findDevice(res, marketDevices));
-                            activeTrailers = activeTrailers.filter(res => findDevice(res, marketDevices));
-
-                              const formatedData = formatGeotabData(
-                                filteredDevices,
-                                results[1],
-                                activeTrailers,
-                                results[3]
-                            );
-                            setGeotabData(formatedData);
-                        },  function (error) {
-                            setError('Error: Could not find AddIn Device Links. Please contact support.');
-                            // const formatedData = formatGeotabData(
-                            //     filteredDevices,
-                            //     results[1],
-                            //     activeTrailers,
-                            //     results[3]
-                            // );
-                            // setGeotabData(formatedData);
-                        } )
-                    } else {
-                        const formatedData = formatGeotabData(
-                            filteredDevices,
-                            results[1],
-                            activeTrailers,
-                            results[3]
-                        );
-                        setGeotabData(formatedData);
-                    }
-                
-                },
-                function (error) {
-                    console.log(error);
-                }
-            );
-        }
-    }, [api]);
+        return billingDevices.findIndex((x) => x.serialNumber === inputDevice.serialNumber) !== -1;
+    };
 
     useEffect(() => {
   if (editFile === null) return;
@@ -591,18 +494,7 @@ const Uploader = ({
                     name="files" /* sets the file input name, it's filepond by default */
                     labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span>'
                 />
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                        <Tooltip title="More Info" arrow>
-                            <IconButton
-                                aria-label="Help"
-                                onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
-                                size="large"
-                                color='primary'
-                            >
-                                <HelpOutlineIcon />
-                            </IconButton>
-                        </Tooltip>
-                    </Box>
+                    
                 </>
             ) : (
                 <Box

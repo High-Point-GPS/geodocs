@@ -37,7 +37,7 @@ import '../../../styles/app-styles.css';
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 
-const DocumentTable = ({ files }) => {
+const DocumentTable = ({ files, onOpenUploader }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
@@ -76,8 +76,8 @@ const DocumentTable = ({ files }) => {
                 marginTop: '2rem',
             }}
         >
-            <Box sx={{ display: 'flex', gap: '1rem' }}>
-                <Box sx={{ flex: 2 }}>
+            <Box sx={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ flex: 1 }}>
                     <DebouncedInput
                         value={globalFilter ?? ''}
                         onChange={(value) => setGlobalFilter(String(value))}
