@@ -60,6 +60,7 @@ const Uploader = ({
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState('');
+    const [fileExtension, setFileExtension] = useState('');
     const [editLoad, setEditLoad] = useState(false);
     const [expiryDate, setExpiryDate] = useState(null);
     const [uploadType, setUploadType] = useState('uploadSelection');
@@ -186,6 +187,7 @@ const Uploader = ({
     const handleCancelEdit = () => {
         clearUploadForm();
         setEditMode(false);
+        setEditFile(null);
     };
 
     const handeEditFile = async () => {
@@ -216,7 +218,8 @@ const Uploader = ({
                     server,
                 };
 
-            console.log(expiryDate);
+            // Combine filename with extension
+            const fullFileName = `${editName}${fileExtension}`;
 
             const { owners, tags } = organizeOwnersAndTags();
             const messageBody = {
@@ -224,21 +227,36 @@ const Uploader = ({
                 database,
                 fileId:    editFile.id,
                 filePath:  editFile.path,
-                fileName:  editName,       // new name
+                fileName:  fullFileName,       // combined name with extension
                 owners,
                 tags,
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
             };
 
-
             console.log(messageBody);
+            console.log(uploadFiles[0]);
 
-            if (editName !== editFile.fileName) {
+            // Check if anything actually changed
+            const fileNameChanged = fullFileName !== editFile.fileName;
+            const expiryChanged = (expiryDate ? expiryDate.toISOString() : null) !== (editFile.expiryDate || null);
+            const ownersChanged = JSON.stringify(owners) !== JSON.stringify(editFile.owners);
+            const tagsChanged = JSON.stringify(tags) !== JSON.stringify(editFile.tags);
+            const fileDataChanged = editName !== editFile.fileName.replace(fileExtension, '');
+
+            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged) {
+                setError('No changes made. Please modify the file or its details before saving.');
+                setLoading(false);
+                return;
+            }
+
+            if (fileNameChanged) {
                 const file     = uploadFiles[0];
                 const base64   = await fileToBase64(file);
                 messageBody.fileData    = base64;
                 messageBody.contentType = file.type;
             }
+
+            console.log(messageBody);
 
              const response = await fetch(
                 'https://us-central1-geotabfiles.cloudfunctions.net/editDocFile',
@@ -256,7 +274,8 @@ const Uploader = ({
                     onValidationError()
                 }
 
-                throw new Error(err.error || 'Upload failed');
+                const errorMessage = data.error || data.message || 'Edit failed';
+                throw new Error(errorMessage);
             }
 
             clearUploadForm();
@@ -264,6 +283,7 @@ const Uploader = ({
             setSuccess('File successfully updated!');
             setTimeout(() => setSuccess(''), 3000);
             setEditMode(false);
+            setEditFile(null);
         } catch (err) {
             console.error(err);
             setError(err.message);
@@ -454,6 +474,14 @@ const Uploader = ({
 
       setUploadFiles([fileToEdit]);
 
+      // Extract extension and filename separately
+      const lastDotIndex = editFile.fileName.lastIndexOf('.');
+      const nameWithoutExt = lastDotIndex > 0 ? editFile.fileName.substring(0, lastDotIndex) : editFile.fileName;
+      const ext = lastDotIndex > 0 ? editFile.fileName.substring(lastDotIndex) : '';
+
+      setEditName(nameWithoutExt);
+      setFileExtension(ext);
+
       if (editFile.expiryDate) {
         setExpiryDate(dayjs(editFile.expiryDate));
       } else {
@@ -462,7 +490,6 @@ const Uploader = ({
 
  
       setEditMode(true);
-      setEditName(editFile.fileName);
 
       // scroll into view
       document.getElementById('upload-area')?.scrollIntoView({
@@ -503,15 +530,19 @@ const Uploader = ({
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
+                        gap: '0.5rem',
                     }}
                 >
                     <TextField
-                        label="Rename File"
+                        label="File Name"
                         variant="outlined"
                         value={editName}
                         sx={{ width: { xs: '90%', sm: '80%', md: '55%' } }}
                         onChange={(e) => setEditName(e.target.value)}
                     />
+                    <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
+                        {fileExtension}
+                    </Typography>
                 </Box>
             )}
 
@@ -680,14 +711,6 @@ const Uploader = ({
                                         onClick={handeEditFile}
                                     >
                                         Save
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        color="secondary"
-                                        onClick={handleCancelEdit}
-                                        sx={{color: 'white'}}
-                                    >
-                                        Cancel
                                     </Button>
                                 </Box>
                             ) : (

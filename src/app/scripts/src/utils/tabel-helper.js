@@ -122,7 +122,6 @@ export const columns = [
         header: () => 'Expiry Date',
         cell: (info) => {
             const value = info.renderValue();
-            console.log(value);
             if (value === null || value.length < 0) {
                 return (
                     <Box

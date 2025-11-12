@@ -65,7 +65,7 @@ const App = ({ api, database, session, server }) => {
 		setEditFile({ ...fileData });
 		setUploaderOpen(true);
 	};
-	
+
 	const handleFileEditComplete = (id, updateDoc) => {
 		setEditFile(null);
 
@@ -189,7 +189,6 @@ const App = ({ api, database, session, server }) => {
 	// Load devices/users/trailers/groups for uploader when API is available
 	useEffect(() => {
 		if (!api) return;
-		console.log('Loading Geotab Data for Uploader...');
 		api.multiCall(
 			[
 				[
