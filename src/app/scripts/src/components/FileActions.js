@@ -132,7 +132,7 @@ const FileActions = ({ fileData, fileId, database, session, server, onEditFile, 
 					color="error"
 					onClick={() => setDeleteConfirm(true)}
 				>
-					<DeleteIcon color="error" />
+					<DeleteIcon color="secondary" />
 				</IconButton>
 			</Tooltip>
 			<Popup open={deleteConfirm}>

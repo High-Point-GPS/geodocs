@@ -151,8 +151,9 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
                                         {hasExpired ? (
                                             <Chip
                                                 label="Expired"
-                                                color="error"
+                                                color="secondary"
                                                 size="small"
+                                                sx={{ color: 'white' }}
                                             />
                                         ) : (
                                             <Chip

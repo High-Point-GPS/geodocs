@@ -18,6 +18,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Button } from '@mui/material';
 import { FilePond } from 'react-filepond';
+import ClearIcon from '@mui/icons-material/Clear';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
@@ -60,8 +61,7 @@ const Uploader = ({
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState('');
     const [editLoad, setEditLoad] = useState(false);
-    const [hasExpiry, setHasExpiry] = useState(false);
-    const [expiryDate, setExpiryDate] = useState(dayjs());
+    const [expiryDate, setExpiryDate] = useState(null);
     const [uploadType, setUploadType] = useState('uploadGroup');
     const [clearGroup, setClearGroup] = useState(false);
 
@@ -227,7 +227,7 @@ const Uploader = ({
                 tags,
             };
 
-            if (hasExpiry) {
+            if (expiryDate) {
                 messageBody.expiryDate = expiryDate.toISOString();
             }
 
@@ -351,7 +351,7 @@ const Uploader = ({
             contentType: file.type,
             owners: owners,
             tags: tags,
-            expiryDate: hasExpiry ? expiryDate.toISOString() : undefined
+            expiryDate: expiryDate ? expiryDate.toISOString() : undefined
         };
 
          const response = await fetch(
@@ -453,10 +453,9 @@ const Uploader = ({
       setUploadFiles([fileToEdit]);
 
       if (editFile.expiryDate) {
-        setHasExpiry(true);
         setExpiryDate(dayjs(editFile.expiryDate));
       } else {
-        setHasExpiry(false);
+        setExpiryDate(null);
       }
 
  
@@ -631,30 +630,32 @@ const Uploader = ({
                     <Box
                         sx={{
                             display: 'flex',
-                            alignItems: 'Center',
+                            alignItems: 'center',
                             gap: '1rem',
                             marginBottom: '1rem',
                         }}
                     >
-                        <Typography>Has Expiry Date</Typography>
-                        <Switch
-                            checked={hasExpiry}
-                            value={hasExpiry}
-                            onChange={(e) => setHasExpiry(e.target.checked)}
-                        />
-                    </Box>
-                    {hasExpiry && (
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
                             <DatePicker
                                 label="File Expire Date"
                                 value={expiryDate}
                                 onChange={(newValue) => {
                                     setExpiryDate(newValue);
-                                    console.log(newValue);
                                 }}
+                                slotProps={{ textField: { size: 'small' } }}
                             />
                         </LocalizationProvider>
-                    )}
+                        <Tooltip title="Clear expiry date">
+                            <IconButton
+                                size="small"
+                                onClick={() => setExpiryDate(null)}
+                                disabled={!expiryDate}
+                                color="error"
+                            >
+                                <ClearIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
                 </Box>
                 <Box>
                     {loading ? (

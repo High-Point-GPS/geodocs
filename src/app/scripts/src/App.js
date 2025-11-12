@@ -28,6 +28,21 @@ import '../../styles/app-styles.css';
 import DocumentMobile from './components/DocumentMobile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#26477C',
+    },
+	secondary: {
+		main: '#FF7404',
+	}
+  },
+  // optional: set app-wide fon
+});
+
 
 const App = ({ api, database, session, server }) => {
 	const [files, setFiles] = useState([]);
@@ -265,12 +280,14 @@ const App = ({ api, database, session, server }) => {
 	}, []);
 
 	return (
+	<ThemeProvider theme={theme}>
+      <CssBaseline />
 		<Box sx={{ flexGrow: 1 }}>
 			<AppBar position="static" sx={{ marginBottom: 3 }}>
 				<Toolbar sx={{backgroundColor: '#fefefe', display: 'flex', justifyContent: 'space-between'}}>
 					<Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1}}>
-						<img src="images/geodocs-Icon.png" alt="GeoDocs Logo" style={{ height: 40 }} />
-						<Typography variant="h6" component="div" sx={{ flexGrow: 1, color: '#000' }}>
+						<img src="https://storage.googleapis.com/geotab_mp_images/solution_logos/3e9cd368-d677-4112-999e-15d654cbe7f9.png" alt="GeoDocs Logo" style={{ height: 40, borderRadius: '5px' }} />
+						<Typography color="primary" variant="h6" component="div" sx={{ flexGrow: 1, display: { xs: 'none', md: 'inline' } }}>
 							GeoDocs
 						</Typography>
 					</Box>
@@ -386,6 +403,7 @@ const App = ({ api, database, session, server }) => {
 				</DialogActions>
 			</Dialog>
 		</Box>
+		</ThemeProvider>
 	);
 };
 

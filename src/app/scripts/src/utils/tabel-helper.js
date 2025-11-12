@@ -153,9 +153,9 @@ export const columns = [
                 >
                     <Typography>{dayjs(value).format('LL')} </Typography>
                     {hasExpired ? (
-                        <Chip label="Expired" color="error" />
+                        <Chip label="Expired" color="secondary" sx={{color: 'white'}} size="small"  />
                     ) : (
-                        <Chip label="Active" color="primary" />
+                        <Chip label="Active" color="primary" size="small" />
                     )}
                 </Box>
             );
