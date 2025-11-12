@@ -26,6 +26,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import '../../styles/app-styles.css';
 
 import DocumentMobile from './components/DocumentMobile';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import GeoIcon from '../../images/geodocs-Icon.png';
 
 const App = ({ api, database, session, server }) => {
 	const [files, setFiles] = useState([]);
@@ -265,12 +267,17 @@ const App = ({ api, database, session, server }) => {
 	return (
 		<Box sx={{ flexGrow: 1 }}>
 			<AppBar position="static" sx={{ marginBottom: 3 }}>
-				<Toolbar>
-					<Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-						GeoDocs
-					</Typography>
-					<Button 
-						color="inherit" 
+				<Toolbar sx={{backgroundColor: '#fefefe', display: 'flex', justifyContent: 'space-between'}}>
+					<Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1}}>
+						<img src={GeoIcon} alt="GeoDocs Logo" style={{ height: 40 }} />
+						<Typography variant="h6" component="div" sx={{ flexGrow: 1, color: '#000' }}>
+							GeoDocs
+						</Typography>
+					</Box>
+	
+					<Button
+						color="primary"
+						variant="outlined"
 						onClick={() => setUploaderOpen(true)}
 						sx={{ 
 							marginRight: 2,
@@ -278,6 +285,7 @@ const App = ({ api, database, session, server }) => {
 								backgroundColor: 'rgba(255, 255, 255, 0.1)'
 							}
 						}}
+						  startIcon={<CloudUploadIcon />}
 					>
 						Upload
 					</Button>
@@ -286,7 +294,7 @@ const App = ({ api, database, session, server }) => {
 							aria-label="Help"
 							onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
 							size="large"
-							color="inherit"
+							color="primary"
 						>
 							<HelpOutlineIcon />
 						</IconButton>

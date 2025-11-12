@@ -77,7 +77,7 @@ const DocumentTable = ({ files, onOpenUploader }) => {
             }}
         >
             <Box sx={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{ flex: 1, marginLeft: '2.2rem' }}>
                     <DebouncedInput
                         value={globalFilter ?? ''}
                         onChange={(value) => setGlobalFilter(String(value))}

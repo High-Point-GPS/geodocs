@@ -82,10 +82,14 @@ module.exports = merge(common, {
 				],
 			},
 			{
-				test: /\.(png|svg|jpg|gif)$/,
-				exclude: /\.dev/,
-				use: ['file-loader'],
-			},
+                test: /\.(png|svg|jpg|gif)$/,
+                exclude: /\.dev/,
+                // Use webpack 5 asset modules instead of file-loader
+                type: 'asset/resource',
+                generator: {
+                    filename: 'images/[name][ext]',
+                },
+           },
 		],
 	},
 	plugins: [
@@ -110,6 +114,7 @@ module.exports = merge(common, {
 		new CopyWebpackPlugin({
 			patterns: [
 				{ from: './src/app/images/icon.svg', to: 'images/' },
+				{ from: './src/app/images/geodocs-Icon.png', to: 'images/' },
 				{
 					from: './src/app/config.json',
 					transform: transform,

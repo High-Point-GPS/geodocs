@@ -152,11 +152,13 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
                                             <Chip
                                                 label="Expired"
                                                 color="error"
+                                                size="small"
                                             />
                                         ) : (
                                             <Chip
                                                 label="Active"
                                                 color="primary"
+                                                size="small"
                                             />
                                         )}
                                     </Box>

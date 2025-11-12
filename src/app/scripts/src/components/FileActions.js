@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Box, IconButton, Tooltip, Typography, Button, CircularProgress } from '@mui/material';
 
+//import EditDocumentIcon from '@mui/icons-material/EditDocument';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
-import EditIcon from '@mui/icons-material/Edit';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Popup from './Popup';
 
@@ -121,7 +122,7 @@ const FileActions = ({ fileData, fileId, database, session, server, onEditFile, 
 					variant="contained"
 					onClick={() => onEditFile({ id: fileId, ...fileData })}
 				>
-					<EditIcon color="primary" />
+					<EditNoteIcon color="primary" sx={{fontSize: 32}} />
 				</IconButton>
 			</Tooltip>
 
