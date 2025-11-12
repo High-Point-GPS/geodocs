@@ -269,7 +269,7 @@ const App = ({ api, database, session, server }) => {
 			<AppBar position="static" sx={{ marginBottom: 3 }}>
 				<Toolbar sx={{backgroundColor: '#fefefe', display: 'flex', justifyContent: 'space-between'}}>
 					<Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1}}>
-						<img src="/images/geodocs-Icon.png" alt="GeoDocs Logo" style={{ height: 40 }} />
+						<img src="images/geodocs-Icon.png" alt="GeoDocs Logo" style={{ height: 40 }} />
 						<Typography variant="h6" component="div" sx={{ flexGrow: 1, color: '#000' }}>
 							GeoDocs
 						</Typography>
