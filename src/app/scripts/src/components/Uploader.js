@@ -62,7 +62,7 @@ const Uploader = ({
     const [editName, setEditName] = useState('');
     const [editLoad, setEditLoad] = useState(false);
     const [expiryDate, setExpiryDate] = useState(null);
-    const [uploadType, setUploadType] = useState('uploadGroup');
+    const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
 
     const handleUpdateUploadType = (e) => {
@@ -216,6 +216,8 @@ const Uploader = ({
                     server,
                 };
 
+            console.log(expiryDate);
+
             const { owners, tags } = organizeOwnersAndTags();
             const messageBody = {
                 session:   sessionInfo,
@@ -225,11 +227,11 @@ const Uploader = ({
                 fileName:  editName,       // new name
                 owners,
                 tags,
+                expiryDate: expiryDate ? expiryDate.toISOString() : null,
             };
 
-            if (expiryDate) {
-                messageBody.expiryDate = expiryDate.toISOString();
-            }
+
+            console.log(messageBody);
 
             if (editName !== editFile.fileName) {
                 const file     = uploadFiles[0];
@@ -650,7 +652,7 @@ const Uploader = ({
                                 size="small"
                                 onClick={() => setExpiryDate(null)}
                                 disabled={!expiryDate}
-                                color="error"
+                                color="secondary"
                             >
                                 <ClearIcon fontSize="small" />
                             </IconButton>
@@ -681,8 +683,9 @@ const Uploader = ({
                                     </Button>
                                     <Button
                                         variant="contained"
-                                        color="error"
+                                        color="secondary"
                                         onClick={handleCancelEdit}
+                                        sx={{color: 'white'}}
                                     >
                                         Cancel
                                     </Button>

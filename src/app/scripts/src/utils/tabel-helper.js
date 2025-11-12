@@ -122,6 +122,7 @@ export const columns = [
         header: () => 'Expiry Date',
         cell: (info) => {
             const value = info.renderValue();
+            console.log(value);
             if (value === null || value.length < 0) {
                 return (
                     <Box
@@ -133,7 +134,7 @@ export const columns = [
                     >
                         <Typography>None</Typography>
 
-                        <Chip label="Active" color="primary" />
+                        <Chip label="Active" color="primary" size="small" />
                     </Box>
                 );
             }

@@ -65,7 +65,7 @@ const App = ({ api, database, session, server }) => {
 		setEditFile({ ...fileData });
 		setUploaderOpen(true);
 	};
-
+	
 	const handleFileEditComplete = (id, updateDoc) => {
 		setEditFile(null);
 
@@ -73,16 +73,31 @@ const App = ({ api, database, session, server }) => {
 
 		const foundFileIndex = newFiles.findIndex((f) => f.id === id);
 
-		if (foundFileIndex !== -1) {
-			newFiles[foundFileIndex] = {
-				...newFiles[foundFileIndex],
-				...updateDoc,
-			};
+		if (foundFileIndex === -1) return;
 
-			setFiles([...newFiles]);
+		const normalized = { ...updateDoc };
+
+		if ('expiryDate' in normalized) {
+			const v = normalized.expiryDate;
+			if (v === null || v === '' || (typeof v === 'object' && Object.keys(v).length === 0)) {
+				normalized.expiryDate = null;
+			}
+			if (normalized.expiryDate === undefined) {
+				delete normalized.expiryDate;
+			}
 		}
-	};
 
+		newFiles[foundFileIndex] = {
+			...newFiles[foundFileIndex],
+			...normalized,
+		};
+
+		if ('expiryDate' in normalized && normalized.expiryDate === null) {
+			newFiles[foundFileIndex].expiryDate = null;
+		}
+
+		setFiles([...newFiles]);
+	};
 
 	const handleFilesUploaded = (docs) => {
 		const newFiles = [...docs, ...files];
