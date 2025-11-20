@@ -167,6 +167,7 @@ geotab.addin.hpgpsFilemanager = function () {
                 // show main content
                 const container = document.getElementById('app');
 
+                container.style.display = 'block';
                 const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
 
                 if (container && eulaAcceptanceStatus) {
@@ -186,6 +187,9 @@ geotab.addin.hpgpsFilemanager = function () {
          */
         blur: function () {
             // hide main content
+            const container = document.getElementById('app');
+
+                container.style.display = 'none';
         },
     };
 };
