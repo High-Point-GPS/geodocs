@@ -187,9 +187,12 @@ geotab.addin.hpgpsFilemanager = function () {
          */
         blur: function () {
             // hide main content
-            const container = document.getElementById('app');
+            // try to remove popup
+            const popup = document.querySelector('.MuiDialog-root');
 
-                container.style.display = 'none';
+            if (popup) {
+                popup.remove();
+            }
         },
     };
 };
