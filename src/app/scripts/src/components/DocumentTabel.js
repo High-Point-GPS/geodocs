@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 import DebouncedInput from './DebouncedInput';
 import Filter from './Filter';
@@ -49,20 +49,27 @@ const DocumentTable = ({ files, geotabData,onOpenUploader }) => {
   });
 };
 
-const displayFiles = files.map(file => ({
-  ...file,
-  owners: {
-    ...file.owners,
-    drivers: formatData(file.owners.drivers, 'drivers'),
-    vehicles: formatData(file.owners.vehicles, 'vehicles'),
-    trailers: formatData(file.owners.trailers, 'trailers'),
-    // groups: formatData(file.owners.groups, 'groups') // only if groups are IDs
-  }
-}));
+const displayFiles = useMemo(() => {
+  return files.map(file => {
+    const owners = file.owners || {};
+    return {
+      ...file,
+      owners: {
+        ...owners,
+        drivers: Array.isArray(owners.drivers) ? formatData(owners.drivers, 'drivers') : owners.drivers || [],
+        vehicles: Array.isArray(owners.vehicles) ? formatData(owners.vehicles, 'vehicles') : owners.vehicles || [],
+        trailers: Array.isArray(owners.trailers) ? formatData(owners.trailers, 'trailers') : owners.trailers || [],
+        groups: Array.isArray(owners.groups) ? owners.groups : owners.groups || [],
+      },
+    };
+  });
+}, [files, geotabData]);
+
+const memoColumns = useMemo(() => columns, []);
 
     const table = useReactTable({
         data: displayFiles,
-        columns,
+        columns: memoColumns,
         filterFns: {
             fuzzy: stringMatchFilter,
         },
@@ -80,8 +87,8 @@ const displayFiles = files.map(file => ({
         getFacetedRowModel: getFacetedRowModel(),
         getFacetedUniqueValues: getFacetedUniqueValues(),
         getFacetedMinMaxValues: getFacetedMinMaxValues(),
-        debugTable: true,
-        debugHeaders: true,
+        debugTable: false,
+        debugHeaders: false,
         debugColumns: false,
     });
 
@@ -112,7 +119,7 @@ const displayFiles = files.map(file => ({
                         fontSize: '18px',
                     }}
                 >
-                    <CSVLink data={generateCSV(files)} filename={'geodoc.csv'}>
+                    <CSVLink data={generateCSV(displayFiles)} filename={'geodoc.csv'}>
                         Export CSV
                     </CSVLink>
                 </Box>
@@ -206,7 +213,7 @@ const displayFiles = files.map(file => ({
                         </TableBody>
                     </Table>
                 </TableContainer>
-                {files.length > table.getState().pagination.pageSize && (
+                {displayFiles.length > table.getState().pagination.pageSize && (
                     <div
                         style={{ marginTop: '1.25rem' }}
                         className="geotabSecondaryText pagenation-foot"
