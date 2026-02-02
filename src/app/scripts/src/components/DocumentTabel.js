@@ -37,12 +37,31 @@ import '../../../styles/app-styles.css';
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 
-const DocumentTable = ({ files, onOpenUploader }) => {
+const DocumentTable = ({ files, geotabData,onOpenUploader }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
+    const formatData = (dataIds, dataKey) => {
+  if (!Array.isArray(dataIds) || !geotabData || !geotabData[dataKey]) return dataIds || [];
+  return dataIds.map(id => {
+    const d = geotabData[dataKey].find(x => x.value === id);
+    return d ? d.label : id;
+  });
+};
+
+const displayFiles = files.map(file => ({
+  ...file,
+  owners: {
+    ...file.owners,
+    drivers: formatData(file.owners.drivers, 'drivers'),
+    vehicles: formatData(file.owners.vehicles, 'vehicles'),
+    trailers: formatData(file.owners.trailers, 'trailers'),
+    // groups: formatData(file.owners.groups, 'groups') // only if groups are IDs
+  }
+}));
+
     const table = useReactTable({
-        data: files,
+        data: displayFiles,
         columns,
         filterFns: {
             fuzzy: stringMatchFilter,
