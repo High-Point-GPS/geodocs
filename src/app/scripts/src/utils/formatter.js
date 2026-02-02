@@ -7,6 +7,16 @@ export const formatOptions = (data) => {
 	});
 };
 
+export const matchGeotabData = (dataIds, dataKey, geotabData) => {
+	const matchedData = dataIds.map((id) => {
+		const data = geotabData[dataKey].find((d) => d.value === id);
+		return data ? data : { label: id, value: id };
+})
+return matchedData;
+};
+
+
+
 const formatGroups = (groups) => {
 	const newGroups = [];
 
@@ -40,12 +50,31 @@ export const formatGeotabData = (
 	fetchedGroups
 ) => {
 	const filteredVehicles = fetchedVehicles.filter(
-		(v) => fetchedTrailers.findIndex((t) => t.name === v.name) === -1 || !v.tmpTrailerId
+		(v) => fetchedTrailers.findIndex((t) => t.name === v.name) === -1
 	);
 
-	const newVehicles = filteredVehicles.map((v) => `${v.name} (${v.serialNumber})`);
-	const newDrives = fetchedDrivers.map((d) => `${d.firstName} ${d.lastName}`);
-	const newTrailers = fetchedTrailers.map((t) => `${t.name}`);
+	const newVehicles = filteredVehicles.map((v) => {
+		return {
+			label: `${v.name} (${v.id})`,
+			value: v.id,
+		}
+	});
+
+
+	const newDrives = fetchedDrivers.map((d) => {
+		return {
+			label: `${d.firstName} ${d.lastName} (${d.id})`,
+			value: d.id,
+		}
+	});
+
+	
+	const newTrailers = fetchedTrailers.map((t) => {
+		return {
+			label: `${t.name} (${t.id})`,
+			value: t.id,
+		}
+	});
 	const newGroups = fetchedGroups.map((g) => {
 		return {
 			value: g.id,
@@ -57,9 +86,9 @@ export const formatGeotabData = (
 	});
 
 	return {
-		vehicles: [...formatOptions(newVehicles)],
-		drivers: [...formatOptions(newDrives)],
-		trailers: [...formatOptions(newTrailers)],
+		vehicles: [...newVehicles],
+		drivers: [...newDrives],
+		trailers: [...newTrailers],
 		groups: [...formatGroups(newGroups)],
 	};
 };

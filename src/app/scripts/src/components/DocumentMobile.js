@@ -15,7 +15,7 @@ import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
-const DocumentMobile = ({ files, onOpenUploader }) => {
+const DocumentMobile = ({ files, geotabData }) => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [filterFiles, setFilterFiles] = useState([]);
@@ -30,6 +30,13 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
             setFilterFiles(newFilterFiles);
         }
     }, [globalFilter, files]);
+
+    const formatData = (dataIds, dataKey) => {
+        return dataIds.map(id => {
+            const data = geotabData[dataKey].find(d => d.value === id);
+            return data ? data.label : id;
+        });
+    }
 
     return (
         <Box
@@ -111,7 +118,7 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
                                             Drivers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {file.owners.drivers.join(', ')}
+                                            {formatData(file.owners.drivers, 'drivers').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
@@ -121,7 +128,7 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
                                             Vehicles
                                         </Typography>
                                         <Typography variant="body1">
-                                            {file.owners.vehicles.join(', ')}
+                                            {formatData(file.owners.vehicles, 'vehicles').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
@@ -131,7 +138,7 @@ const DocumentMobile = ({ files, onOpenUploader }) => {
                                             Trailers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {file.owners.trailers.join(', ')}
+                                            {formatData(file.owners.trailers, 'trailers').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}

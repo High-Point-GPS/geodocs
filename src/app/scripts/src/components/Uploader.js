@@ -11,7 +11,7 @@ import {
     IconButton,
     Tooltip
 } from '@mui/material';
-import { formatGeotabData, formatOptions } from '../utils/formatter';
+import { formatGeotabData, formatOptions, matchGeotabData } from '../utils/formatter';
 import dayjs from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -233,9 +233,6 @@ const Uploader = ({
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
             };
 
-            console.log(messageBody);
-            console.log(uploadFiles[0]);
-
             // Check if anything actually changed
             const fileNameChanged = fullFileName !== editFile.fileName;
             const expiryChanged = (expiryDate ? expiryDate.toISOString() : null) !== (editFile.expiryDate || null);
@@ -255,8 +252,6 @@ const Uploader = ({
                 messageBody.fileData    = base64;
                 messageBody.contentType = file.type;
             }
-
-            console.log(messageBody);
 
              const response = await fetch(
                 'https://us-central1-geotabfiles.cloudfunctions.net/editDocFile',
@@ -376,6 +371,8 @@ const Uploader = ({
             expiryDate: expiryDate ? expiryDate.toISOString() : undefined
         };
 
+        console.log('Uploading file with message body:', messageBody);
+
          const response = await fetch(
             'https://us-central1-geotabfiles.cloudfunctions.net/uploadDocFile',
             {
@@ -391,7 +388,7 @@ const Uploader = ({
                onValidationError();
             }
 
-           console.error('Fetched Files failed: ', errorData.error ? errorData.error : '');
+           console.error('Upload File failed: ', errorData.error ? errorData.error : '');
         }
         return response.json();
     };
@@ -453,9 +450,9 @@ const Uploader = ({
       if (dataGroups.length === 0) {
         setUploadType('uploadSelection');
         setSelections({
-          vehicles: [...formatOptions(dataVehicles)],
-          drivers:  [...formatOptions(dataDrivers)],
-          trailers: [...formatOptions(dataTrailers)],
+          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData)],
+          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData)],
+          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData)],
           groups:   [...formatOptions(dataGroups)],
         });
       } else {
@@ -466,9 +463,9 @@ const Uploader = ({
       }
 
       setUploadData({
-        vehicles: [...formatOptions(dataVehicles)],
-        drivers:  [...formatOptions(dataDrivers)],
-        trailers: [...formatOptions(dataTrailers)],
+        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData)],
+        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData)],
+        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData)],
         groups:   [...formatOptions(dataGroups)],
       });
 

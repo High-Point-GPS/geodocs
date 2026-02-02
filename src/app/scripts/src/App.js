@@ -59,6 +59,8 @@ const App = ({ api, database, session, server }) => {
         groups: [],
     });
 
+	const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
     const [uploaderOpen, setUploaderOpen] = useState(false);
 
 	const handeEditFile = (fileData) => {
@@ -109,6 +111,59 @@ const App = ({ api, database, session, server }) => {
 		const newFiles = files.filter((file) => file.id !== id);
 		setFiles(newFiles);
 	};
+
+	const  updateLegacyData = async(devices, drivers, trailers, creds) => {
+		const vehicleDataTransfer = devices.map(v => {
+			return {
+				oldData: `${v.name} (${v.serialNumber})`,
+				newData: v.id
+			}
+		});
+
+		const driverDataTransfer = drivers.map(d => {
+			return {
+				oldData: `${d.firstName} ${d.lastName}`,
+				newData: d.id
+			}
+		});
+
+		const trailerDataTransfer = trailers.map(v => {
+			return {
+				oldData: `${v.name}`,
+				newData: v.id
+			}
+		});
+
+		const data = {
+			vehicles: vehicleDataTransfer,
+			drivers: driverDataTransfer,
+			trailers: trailerDataTransfer
+		};
+
+		const messageBody ={
+			session: creds,
+			database: creds.database,
+			username: creds.userName,
+			data: data
+		}
+
+
+		const configResponse = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/updateLegacyData',
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			body: JSON.stringify(messageBody)
+		});
+
+		const config = await configResponse.json();
+
+		if (config.success === true) {
+			setShowSuccessDialog(true);
+		}
+	}
 
 
 	const fetchFiles = async  () => {
@@ -211,7 +266,14 @@ const App = ({ api, database, session, server }) => {
 				['Get', { typeName: 'Trailer' }],
 				['Get', { typeName: 'Group' }],
 			],
-			function (results) {
+			async function (results) {
+				const sessionInfo = {
+					database: database,
+					sessionId:  session.sessionId,
+					userName: session.userName,
+					server: server
+				};
+
 				let filteredDevices = results[0].filter(
 					(res) => res.vehicleIdentificationNumber !== ''
 				);
@@ -221,6 +283,8 @@ const App = ({ api, database, session, server }) => {
 					const isId = res.tmpTrailerId && trailerNames.findIndex((t) => t === res.tmpTrailerId) !== -1;
 					return isActive && isId;
 				});
+
+				await updateLegacyData(filteredDevices, results[1], activeTrailers, sessionInfo);
 
 				if (!databaseConfig.directBilling) {
 					api.call(
@@ -348,9 +412,9 @@ const App = ({ api, database, session, server }) => {
 				<>
 					{/* DocumentTable now hosts the Upload button in its header via onOpenUploader */}
 					{mobile ? (
-						<DocumentMobile files={tableFiles} onOpenUploader={() => setUploaderOpen(true)} />
+						<DocumentMobile files={tableFiles} geotabData={geotabData} onOpenUploader={() => setUploaderOpen(true)} />
 					) : (
-						<DocumentTable files={tableFiles} onOpenUploader={() => setUploaderOpen(true)} />
+						<DocumentTable files={tableFiles} geotabData={geotabData} onOpenUploader={() => setUploaderOpen(true)} />
 					)}
 				</>
 			)}
@@ -413,6 +477,24 @@ const App = ({ api, database, session, server }) => {
 				<DialogActions>
 					<Button variant="contained" onClick={() => setValidationError(false)}>
 						OK
+					</Button>
+				</DialogActions>
+			</Dialog>
+				<Dialog
+				open={showSuccessDialog}
+				onClose={() => setShowSuccessDialog(false)}
+				aria-labelledby="success-title"
+			>
+				<DialogTitle id="success-title" sx={{fontSize: 24}}>Data Updated Successfully</DialogTitle>
+				<DialogContent>
+					<Typography variant='h6'>We have updated your data to use device, vehicle, and trailer ids. Please refresh the page to see the changes.</Typography>
+				</DialogContent>
+				<DialogActions>
+					<Button variant="contained" onClick={() => {
+						setShowSuccessDialog(false);
+						window.location.reload();
+					}}>
+						Refresh Page
 					</Button>
 				</DialogActions>
 			</Dialog>
