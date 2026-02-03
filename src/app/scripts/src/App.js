@@ -274,9 +274,7 @@ const App = ({ api, database, session, server }) => {
 					server: server
 				};
 
-				let filteredDevices = results[0].filter(
-					(res) => res.vehicleIdentificationNumber !== ''
-				);
+				let filteredDevices = results[0];
 				const trailerNames = results[2].map((t) => t.id);
 				let activeTrailers = results[0].filter((res) => {
 					const isActive = new Date(res.activeTo) > new Date();
