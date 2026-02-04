@@ -243,7 +243,8 @@ const App = ({ api, database, session, server }) => {
 
 	// Load devices/users/trailers/groups for uploader when API is available
 	useEffect(() => {
-		if (!api) return;
+		
+		if (!api || Object.keys(databaseConfig).length === 0) return;
 		api.multiCall(
 			[
 				[
