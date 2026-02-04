@@ -55,7 +55,7 @@ export const formatGeotabData = (
 
 	const newVehicles = filteredVehicles.map((v) => {
 		return {
-			label: `${v.name} (${v.id})`,
+			label: `${v.name}`,
 			value: v.id,
 		}
 	});
@@ -63,7 +63,7 @@ export const formatGeotabData = (
 
 	const newDrives = fetchedDrivers.map((d) => {
 		return {
-			label: `${d.firstName} ${d.lastName} (${d.id})`,
+			label: `${d.firstName} ${d.lastName}`,
 			value: d.id,
 		}
 	});
@@ -71,7 +71,7 @@ export const formatGeotabData = (
 	
 	const newTrailers = fetchedTrailers.map((t) => {
 		return {
-			label: `${t.name} (${t.id})`,
+			label: `${t.name}`,
 			value: t.id,
 		}
 	});
