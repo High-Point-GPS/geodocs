@@ -50,7 +50,7 @@ export const formatGeotabData = (
 	fetchedGroups
 ) => {
 	const filteredVehicles = fetchedVehicles.filter(
-		(v) => fetchedTrailers.findIndex((t) => t.name === v.name) === -1
+		(v) => fetchedTrailers.findIndex((t) => t.tmpTrailerId === v.tmpTrailerId) === -1 
 	);
 
 	const newVehicles = filteredVehicles.map((v) => {
