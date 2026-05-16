@@ -63,6 +63,7 @@ const Uploader = ({
     const [fileExtension, setFileExtension] = useState('');
     const [editLoad, setEditLoad] = useState(false);
     const [expiryDate, setExpiryDate] = useState(null);
+    const [alertEmail, setAlertEmail] = useState('');
     const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
 
@@ -172,6 +173,7 @@ const Uploader = ({
 
     const clearUploadForm = () => {
         setUploadFiles([]);
+        setAlertEmail('');
         const emptyData = {
             vehicles: [],
             drivers: [],
@@ -220,6 +222,7 @@ const Uploader = ({
 
             // Combine filename with extension
             const fullFileName = `${editName}${fileExtension}`;
+            const normalizedAlertEmail = alertEmail.trim() === '' ? null : alertEmail.trim();
 
             const { owners, tags } = organizeOwnersAndTags();
             const messageBody = {
@@ -231,6 +234,7 @@ const Uploader = ({
                 owners,
                 tags,
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
+                alertEmail: normalizedAlertEmail,
             };
 
             // Check if anything actually changed
@@ -239,8 +243,9 @@ const Uploader = ({
             const ownersChanged = JSON.stringify(owners) !== JSON.stringify(editFile.owners);
             const tagsChanged = JSON.stringify(tags) !== JSON.stringify(editFile.tags);
             const fileDataChanged = editName !== editFile.fileName.replace(fileExtension, '');
+            const alertEmailChanged = (alertEmail.trim() || null) !== (editFile.alertEmail || null);
 
-            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged) {
+            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged) {
                 setError('No changes made. Please modify the file or its details before saving.');
                 setLoading(false);
                 return;
@@ -274,7 +279,7 @@ const Uploader = ({
             }
 
             clearUploadForm();
-            onEditComplete(editFile.id, data);
+            onEditComplete(editFile.id, { ...data, alertEmail: normalizedAlertEmail });
             setSuccess('File successfully updated!');
             setTimeout(() => setSuccess(''), 3000);
             setEditMode(false);
@@ -350,6 +355,7 @@ const Uploader = ({
 
     const uploadFile = async (filename, file) => {
         const base64 = await fileToBase64(file);
+        const normalizedAlertEmail = alertEmail.trim() === '' ? null : alertEmail.trim();
 
         const sessionInfo = {
             database,
@@ -368,7 +374,8 @@ const Uploader = ({
             contentType: file.type,
             owners: owners,
             tags: tags,
-            expiryDate: expiryDate ? expiryDate.toISOString() : undefined
+            expiryDate: expiryDate ? expiryDate.toISOString() : undefined,
+            alertEmail: normalizedAlertEmail,
         };
 
         console.log('Uploading file with message body:', messageBody);
@@ -390,7 +397,8 @@ const Uploader = ({
 
            console.error('Upload File failed: ', errorData.error ? errorData.error : '');
         }
-        return response.json();
+        const responseData = await response.json();
+        return { ...responseData, alertEmail: normalizedAlertEmail };
     };
 
     const findDevice = (inputDevice, billingDevices) => {
@@ -484,6 +492,8 @@ const Uploader = ({
       } else {
         setExpiryDate(null);
       }
+
+            setAlertEmail(editFile.alertEmail || '');
 
  
       setEditMode(true);
@@ -687,6 +697,14 @@ const Uploader = ({
                         </Tooltip>
                     </Box>
                 </Box>
+                <TextField
+                    label="Alert Email"
+                    value={alertEmail}
+                    onChange={(e) => setAlertEmail(e.target.value)}
+                    fullWidth
+                    sx={{ width: { xs: '100%', sm: '100%', md: '75%' } }}
+                    helperText="Optional. Overrides the global alert email for this document."
+                />
                 <Box>
                     {loading ? (
                         <CircularProgress />

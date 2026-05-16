@@ -37,7 +37,7 @@ import '../../../styles/app-styles.css';
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 
-const DocumentTable = ({ files, geotabData,onOpenUploader }) => {
+const DocumentTable = ({ files, geotabData, globalAlertEmail, onOpenUploader }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
@@ -65,11 +65,13 @@ const displayFiles = useMemo(() => {
   });
 }, [files, geotabData]);
 
-const memoColumns = useMemo(() => columns, []);
 
     const table = useReactTable({
         data: displayFiles,
-        columns: memoColumns,
+        columns: columns,
+        meta: {
+            globalEmail: globalAlertEmail || '',
+        },
         filterFns: {
             fuzzy: stringMatchFilter,
         },
@@ -148,15 +150,11 @@ const memoColumns = useMemo(() => columns, []);
                                                         }}
                                                     >
                                                         <Typography variant="h6">
-                                                            {flexRender(
-                                                                header.column
-                                                                    .columnDef
-                                                                    .header,
-                                                                header.getContext()
-                                                            )}
+                                                            {typeof header.column.columnDef.header === 'function'
+                                                                ? header.column.columnDef.header(header.getContext?.() || {})
+                                                                : header.column.columnDef.header}
                                                         </Typography>
-                                                        {header.id !==
-                                                        'action' ? (
+                                                        {header.column.getCanFilter() ? (
                                                             <div>
                                                                 <Filter
                                                                     column={
@@ -165,7 +163,9 @@ const memoColumns = useMemo(() => columns, []);
                                                                     table={
                                                                         table
                                                                     }
-                                                                    name={header.column.columnDef.header()}
+                                                                    name={typeof header.column.columnDef.header === 'function'
+                                                                        ? header.column.columnDef.header(header.getContext?.() || {})
+                                                                        : header.column.columnDef.header}
                                                                 />
                                                             </div>
                                                         ) : null}

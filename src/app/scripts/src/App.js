@@ -10,6 +10,7 @@ import {
     Button, 
     Tooltip, 
     IconButton,
+	TextField,
     AppBar,
     Toolbar,
 } from '@mui/material';
@@ -22,6 +23,7 @@ import { formatGeotabData } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close'; 
+import SettingsIcon from '@mui/icons-material/Settings';
 
 import '../../styles/app-styles.css';
 
@@ -52,6 +54,10 @@ const App = ({ api, database, session, server }) => {
 	const [loading, setLoading] = useState(false);
 	const [validationError, setValidationError] = useState(false);
 	const [databaseConfig, setDatabaseConfig] = useState({});
+	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [settingsSaving, setSettingsSaving] = useState(false);
+	const [globalAlertEmail, setGlobalAlertEmail] = useState('');
+	const [globalAlertDaysBeforeExpiry, setGlobalAlertDaysBeforeExpiry] = useState('');
     const [geotabData, setGeotabData] = useState({
         vehicles: [],
         drivers: [],
@@ -62,6 +68,27 @@ const App = ({ api, database, session, server }) => {
 	const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
     const [uploaderOpen, setUploaderOpen] = useState(false);
+
+	const getAlertSettingsFromConfig = (config) => ({
+		email: config?.alertEmail ?? '',
+		days:
+			config?.alertDaysBeforeExpiry === 0 || config?.alertDaysBeforeExpiry
+				? config.alertDaysBeforeExpiry
+				: 7,
+	});
+
+	useEffect(() => {
+		const { email, days } = getAlertSettingsFromConfig(databaseConfig);
+		setGlobalAlertEmail(email ? String(email) : '');
+		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
+	}, [databaseConfig]);
+
+	useEffect(() => {
+		if (!settingsOpen) return;
+		const { email, days } = getAlertSettingsFromConfig(databaseConfig);
+		setGlobalAlertEmail(email ? String(email) : '');
+		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
+	}, [settingsOpen, databaseConfig]);
 
 	const handeEditFile = (fileData) => {
 		setEditFile({ ...fileData });
@@ -89,6 +116,12 @@ const App = ({ api, database, session, server }) => {
 			}
 		}
 
+		if ('alertEmail' in normalized) {
+			if (normalized.alertEmail === '' || normalized.alertEmail === undefined) {
+				normalized.alertEmail = null;
+			}
+		}
+
 		newFiles[foundFileIndex] = {
 			...newFiles[foundFileIndex],
 			...normalized,
@@ -98,7 +131,71 @@ const App = ({ api, database, session, server }) => {
 			newFiles[foundFileIndex].expiryDate = null;
 		}
 
+		if ('alertEmail' in normalized && normalized.alertEmail === null) {
+			newFiles[foundFileIndex].alertEmail = null;
+		}
+
 		setFiles([...newFiles]);
+	};
+
+	const handleSaveGlobalAlertSettings = async () => {
+		setSettingsSaving(true);
+
+		try {
+			const sessionInfo = {
+				database,
+				sessionId: session.sessionId,
+				userName: session.userName,
+				server,
+			};
+
+			const parsedDays = Number(globalAlertDaysBeforeExpiry);
+			const alertDaysBeforeExpiry = Number.isFinite(parsedDays) && parsedDays >= 0 ? parsedDays : 7;
+
+			const messageBody = {
+				session: sessionInfo,
+				database,
+				globalAlertEmail: globalAlertEmail.trim(),
+				globalAlertDaysBeforeExpiry: alertDaysBeforeExpiry,
+			};
+
+			const response = await fetch(
+				'https://us-central1-geotabfiles.cloudfunctions.net/editGlobalAlertSettings',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Accept: 'application/json',
+					},
+					body: JSON.stringify(messageBody),
+				}
+			);
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				if (data.valid === false) {
+					setValidationError(true);
+				}
+				throw new Error(data.error || data.message || 'Failed to save alert settings');
+			}
+
+			setDatabaseConfig((current) => {
+				return {
+					...current,
+					alertEmail: data.globalAlertEmail ?? globalAlertEmail.trim(),
+					alertDaysBeforeExpiry:
+						data.globalAlertDaysBeforeExpiry === 0 || data.globalAlertDaysBeforeExpiry
+							? data.globalAlertDaysBeforeExpiry
+							: alertDaysBeforeExpiry,
+				};
+			});
+			setSettingsOpen(false);
+		} catch (error) {
+			console.error('Failed to save global alert settings:', error);
+		} finally {
+			setSettingsSaving(false);
+		}
 	};
 
 	const handleFilesUploaded = (docs) => {
@@ -383,6 +480,16 @@ const App = ({ api, database, session, server }) => {
 					>
 						Upload
 					</Button>
+					<Tooltip title="Settings" arrow>
+						<IconButton
+							aria-label="Settings"
+							onClick={() => setSettingsOpen(true)}
+							size="large"
+							color="primary"
+						>
+							<SettingsIcon />
+						</IconButton>
+					</Tooltip>
 					<Tooltip title="More Info" arrow>
 						<IconButton
 							aria-label="Help"
@@ -395,6 +502,48 @@ const App = ({ api, database, session, server }) => {
 					</Tooltip>
 				</Toolbar>
 			</AppBar>
+
+				<Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="sm" fullWidth>
+					<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+						Global Alert Settings
+						<IconButton
+							aria-label="close settings"
+							onClick={() => setSettingsOpen(false)}
+							sx={{ color: (theme) => theme.palette.grey[500] }}
+						>
+							<CloseIcon />
+						</IconButton>
+					</DialogTitle>
+					<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+						<Typography variant="body2" color="text.secondary">
+							Configure the default email to receive alerts on document expiry dates and how many days before expiry an alert should be sent.
+						</Typography>
+						<TextField
+							label="Global Alert Email"
+							value={globalAlertEmail}
+							onChange={(e) => setGlobalAlertEmail(e.target.value)}
+							fullWidth
+							helperText="The default email to receive alerts on documents expiry dates."
+						/>
+						<TextField
+							label="Alert Days Before Expiry"
+							type="number"
+							value={globalAlertDaysBeforeExpiry}
+							onChange={(e) => setGlobalAlertDaysBeforeExpiry(e.target.value)}
+							fullWidth
+							inputProps={{ min: 0 }}
+							helperText="How many days before a document expires we should send an alert email."
+						/>
+					</DialogContent>
+					<DialogActions sx={{ px: 3, pb: 2 }}>
+						<Button onClick={() => setSettingsOpen(false)} disabled={settingsSaving}>
+							Cancel
+						</Button>
+						<Button variant="contained" onClick={handleSaveGlobalAlertSettings} disabled={settingsSaving}>
+							{settingsSaving ? 'Saving...' : 'Save'}
+						</Button>
+					</DialogActions>
+				</Dialog>
 
 			{loading ? (
 				<Box
@@ -413,7 +562,12 @@ const App = ({ api, database, session, server }) => {
 					{mobile ? (
 						<DocumentMobile files={tableFiles} geotabData={geotabData} onOpenUploader={() => setUploaderOpen(true)} />
 					) : (
-						<DocumentTable files={tableFiles} geotabData={geotabData} onOpenUploader={() => setUploaderOpen(true)} />
+						<DocumentTable
+							files={tableFiles}
+							geotabData={geotabData}
+							globalAlertEmail={databaseConfig?.alertEmail || ''}
+							onOpenUploader={() => setUploaderOpen(true)}
+						/>
 					)}
 				</>
 			)}
