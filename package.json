@@ -15,8 +15,7 @@
 		"build-dev": "webpack --mode=production --config webpack.local.js"
 	},
 	"resolutions": {
-		"semver-regex": "4.0.1",
-		"ajv-keywords": "5.1.0"
+		"semver-regex": "4.0.1"
 	},
 	"keywords": [],
 	"author": "",
