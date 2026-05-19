@@ -23,7 +23,7 @@ import { formatGeotabData } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close'; 
-import SettingsIcon from '@mui/icons-material/Settings';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 import '../../styles/app-styles.css';
 
@@ -480,14 +480,14 @@ const App = ({ api, database, session, server }) => {
 					>
 						Upload
 					</Button>
-					<Tooltip title="Settings" arrow>
+					<Tooltip title="Alert Settings" arrow>
 						<IconButton
-							aria-label="Settings"
+							aria-label="Alert Settings"
 							onClick={() => setSettingsOpen(true)}
 							size="large"
 							color="primary"
 						>
-							<SettingsIcon />
+							<NotificationsIcon />
 						</IconButton>
 					</Tooltip>
 					<Tooltip title="More Info" arrow>
