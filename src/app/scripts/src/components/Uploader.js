@@ -4,6 +4,7 @@ import {
     Typography,
     CircularProgress,
     FormControlLabel,
+    Checkbox,
     RadioGroup,
     Radio,
     TextField,
@@ -64,6 +65,7 @@ const Uploader = ({
     const [editLoad, setEditLoad] = useState(false);
     const [expiryDate, setExpiryDate] = useState(null);
     const [alertEmail, setAlertEmail] = useState('');
+    const [driverCanView, setDriverCanView] = useState(true);
     const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
 
@@ -174,6 +176,7 @@ const Uploader = ({
     const clearUploadForm = () => {
         setUploadFiles([]);
         setAlertEmail('');
+        setDriverCanView(true);
         const emptyData = {
             vehicles: [],
             drivers: [],
@@ -235,6 +238,7 @@ const Uploader = ({
                 tags,
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
                 alertEmail: normalizedAlertEmail,
+                hideFromDriver: !driverCanView,
             };
 
             // Check if anything actually changed
@@ -244,8 +248,9 @@ const Uploader = ({
             const tagsChanged = JSON.stringify(tags) !== JSON.stringify(editFile.tags);
             const fileDataChanged = editName !== editFile.fileName.replace(fileExtension, '');
             const alertEmailChanged = (alertEmail.trim() || null) !== (editFile.alertEmail || null);
+            const hideFromDriverChanged = (!driverCanView) !== !!editFile.hideFromDriver;
 
-            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged) {
+            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged) {
                 setError('No changes made. Please modify the file or its details before saving.');
                 setLoading(false);
                 return;
@@ -279,7 +284,7 @@ const Uploader = ({
             }
 
             clearUploadForm();
-            onEditComplete(editFile.id, { ...data, alertEmail: normalizedAlertEmail });
+            onEditComplete(editFile.id, { ...data, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView });
             setSuccess('File successfully updated!');
             setTimeout(() => setSuccess(''), 3000);
             setEditMode(false);
@@ -376,6 +381,7 @@ const Uploader = ({
             tags: tags,
             expiryDate: expiryDate ? expiryDate.toISOString() : undefined,
             alertEmail: normalizedAlertEmail,
+            hideFromDriver: !driverCanView,
         };
 
         console.log('Uploading file with message body:', messageBody);
@@ -398,7 +404,7 @@ const Uploader = ({
            console.error('Upload File failed: ', errorData.error ? errorData.error : '');
         }
         const responseData = await response.json();
-        return { ...responseData, alertEmail: normalizedAlertEmail };
+        return { ...responseData, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView };
     };
 
     const findDevice = (inputDevice, billingDevices) => {
@@ -494,6 +500,7 @@ const Uploader = ({
       }
 
             setAlertEmail(editFile.alertEmail || '');
+                        setDriverCanView(editFile.hideFromDriver ? false : true);
 
  
       setEditMode(true);
@@ -535,21 +542,56 @@ const Uploader = ({
                 <Box
                     sx={{
                         display: 'flex',
+                        flexDirection: 'column',
                         justifyContent: 'center',
                         alignItems: 'center',
                         gap: '0.5rem',
+                        marginTop: '0.75rem',
                     }}
                 >
-                    <TextField
-                        label="File Name"
-                        variant="outlined"
-                        value={editName}
-                        sx={{ width: { xs: '90%', sm: '80%', md: '55%' } }}
-                        onChange={(e) => setEditName(e.target.value)}
-                    />
-                    <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
-                        {fileExtension}
-                    </Typography>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            marginTop: '0.25rem',
+                            width: '100%',
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                width: '100%',
+                            }}
+                        >
+                            <TextField
+                                label="File Name"
+                                variant="outlined"
+                                value={editName}
+                                sx={{ width: { xs: '90%', sm: '80%', md: '55%' } }}
+                                onChange={(e) => setEditName(e.target.value)}
+                            />
+                            <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
+                                {fileExtension}
+                            </Typography>
+                        </Box>
+                        <FormControlLabel
+                            sx={{ alignSelf: 'center', marginRight: 0 }}
+                            control={
+                                <Checkbox
+                                    checked={driverCanView}
+                                    onChange={(e) => setDriverCanView(e.target.checked)}
+                                    color="primary"
+                                />
+                            }
+                            label="Driver can view"
+                        />
+                    </Box>
                 </Box>
             )}
 
@@ -666,11 +708,22 @@ const Uploader = ({
                         isDisabled={uploadType !== 'uploadSelection'}
                     />
                 </Box>
-                <Box>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     <Box
                         sx={{
+                            width: { xs: '100%', sm: '100%', md: '75%' },
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: {
+                                xs: 'column',
+                                sm: 'column',
+                                md: 'row',
+                            },
+                            alignItems: {
+                                xs: 'stretch',
+                                sm: 'stretch',
+                                md: 'center',
+                            },
+                            justifyContent: 'center',
                             gap: '1rem',
                             marginBottom: '1rem',
                         }}
@@ -695,16 +748,19 @@ const Uploader = ({
                                 <ClearIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
+                        {expiryDate ? (
+                            <TextField
+                                label="Expiration email alert"
+                                value={alertEmail}
+                                onChange={(e) => setAlertEmail(e.target.value)}
+                                size="small"
+                                sx={{
+                                    width: { xs: '100%', sm: '100%', md: '280px' },
+                                }}
+                            />
+                        ) : null}
                     </Box>
                 </Box>
-                <TextField
-                    label="Alert Email"
-                    value={alertEmail}
-                    onChange={(e) => setAlertEmail(e.target.value)}
-                    fullWidth
-                    sx={{ width: { xs: '100%', sm: '100%', md: '75%' } }}
-                    helperText="Optional. Overrides the global alert email for this document."
-                />
                 <Box>
                     {loading ? (
                         <CircularProgress />

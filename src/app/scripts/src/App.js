@@ -13,6 +13,8 @@ import {
 	TextField,
     AppBar,
     Toolbar,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 
 import Uploader from './components/Uploader';
@@ -58,6 +60,7 @@ const App = ({ api, database, session, server }) => {
 	const [settingsSaving, setSettingsSaving] = useState(false);
 	const [globalAlertEmail, setGlobalAlertEmail] = useState('');
 	const [globalAlertDaysBeforeExpiry, setGlobalAlertDaysBeforeExpiry] = useState('');
+	const [dailyNotifications, setDailyNotifications] = useState(false);
     const [geotabData, setGeotabData] = useState({
         vehicles: [],
         drivers: [],
@@ -75,19 +78,22 @@ const App = ({ api, database, session, server }) => {
 			config?.alertDaysBeforeExpiry === 0 || config?.alertDaysBeforeExpiry
 				? config.alertDaysBeforeExpiry
 				: 7,
+		dailyNotifications: config?.dailyNotifications ?? false,
 	});
 
 	useEffect(() => {
-		const { email, days } = getAlertSettingsFromConfig(databaseConfig);
+		const { email, days, dailyNotifications: dn } = getAlertSettingsFromConfig(databaseConfig);
 		setGlobalAlertEmail(email ? String(email) : '');
 		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
+		setDailyNotifications(!!dn);
 	}, [databaseConfig]);
 
 	useEffect(() => {
 		if (!settingsOpen) return;
-		const { email, days } = getAlertSettingsFromConfig(databaseConfig);
+		const { email, days, dailyNotifications: dn } = getAlertSettingsFromConfig(databaseConfig);
 		setGlobalAlertEmail(email ? String(email) : '');
 		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
+		setDailyNotifications(!!dn);
 	}, [settingsOpen, databaseConfig]);
 
 	const handeEditFile = (fileData) => {
@@ -157,6 +163,7 @@ const App = ({ api, database, session, server }) => {
 				database,
 				globalAlertEmail: globalAlertEmail.trim(),
 				globalAlertDaysBeforeExpiry: alertDaysBeforeExpiry,
+				dailyNotifications,
 			};
 
 			const response = await fetch(
@@ -188,6 +195,7 @@ const App = ({ api, database, session, server }) => {
 						data.globalAlertDaysBeforeExpiry === 0 || data.globalAlertDaysBeforeExpiry
 							? data.globalAlertDaysBeforeExpiry
 							: alertDaysBeforeExpiry,
+					dailyNotifications: data.dailyNotifications ?? dailyNotifications,
 				};
 			});
 			setSettingsOpen(false);
@@ -480,9 +488,9 @@ const App = ({ api, database, session, server }) => {
 					>
 						Upload
 					</Button>
-					<Tooltip title="Alert Settings" arrow>
+					<Tooltip title="Document Expiration Notifications" arrow>
 						<IconButton
-							aria-label="Alert Settings"
+							aria-label="Document Expiration Notifications"
 							onClick={() => setSettingsOpen(true)}
 							size="large"
 							color="primary"
@@ -533,6 +541,16 @@ const App = ({ api, database, session, server }) => {
 							fullWidth
 							inputProps={{ min: 0 }}
 							helperText="How many days before a document expires we should send an alert email."
+						/>
+						<FormControlLabel
+							control={
+								<Checkbox
+									checked={dailyNotifications}
+									onChange={(e) => setDailyNotifications(e.target.checked)}
+									color="primary"
+								/>
+							}
+							label="Enable daily notifications"
 						/>
 					</DialogContent>
 					<DialogActions sx={{ px: 3, pb: 2 }}>

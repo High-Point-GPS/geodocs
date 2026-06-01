@@ -163,24 +163,6 @@ export const columns = [
         filterFn: 'fuzzy',
         sortingFn: fuzzySort,
     }),
-    columnHelper.accessor('alertEmail', {
-        header: () => 'Alert Email',
-        cell: (info) => {
-            const value = info.getValue();
-            const globalEmail = info.table.options.meta?.globalEmail; // Assuming global email is passed via table meta
-
-            if (value) {
-                return <Typography>{value}</Typography>;
-            } else if (globalEmail) {
-                return <Typography>{globalEmail}</Typography>;
-            } else {
-                return <Typography color="textSecondary">No email set</Typography>;
-            }
-        },
-        enableColumnFilter: false,
-        filterFn: 'fuzzy',
-        sortingFn: fuzzySort,
-    }),
     columnHelper.accessor('action', {
         header: () => 'Action',
         cell: (info) => info.renderValue(),
