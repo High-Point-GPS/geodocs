@@ -33,6 +33,12 @@ module.exports = merge(common, {
 			},
 			{
 				test: /\.(png|svg|jpg|gif)$/,
+				resourceQuery: /inline/,
+				type: 'asset/inline',
+			},
+			{
+				test: /\.(png|svg|jpg|gif)$/,
+				resourceQuery: { not: [/inline/] },
 				type: 'asset/resource',
 			},
 		],

@@ -29,7 +29,7 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
-import RvHookupOutlinedIcon from '@mui/icons-material/RvHookupOutlined';
+import FlatbedTrailerIcon from './FlatbedTrailerIcon';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 
 import {
@@ -56,13 +56,15 @@ const getHeaderLabel = (header) => {
 };
 
 // Icon shown before each column name in the filter band, keyed by column id.
+// Keyed by the column's display label (react-table mangles dotted accessor ids,
+// e.g. "owners.groups" -> "owners_groups", so id-based keys miss the owner columns).
 const columnIcons = {
-    fileName: InsertDriveFileOutlinedIcon,
-    'owners.groups': GroupsOutlinedIcon,
-    'owners.vehicles': DirectionsCarOutlinedIcon,
-    'owners.drivers': PersonOutlinedIcon,
-    'owners.trailers': RvHookupOutlinedIcon,
-    expiryDate: EventOutlinedIcon,
+    File: InsertDriveFileOutlinedIcon,
+    Groups: GroupsOutlinedIcon,
+    Vehicles: DirectionsCarOutlinedIcon,
+    Drivers: PersonOutlinedIcon,
+    Trailers: FlatbedTrailerIcon,
+    'Expiry Date': EventOutlinedIcon,
 };
 
 const buildPages = (current, count) => {
@@ -228,7 +230,7 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                         return <TableCell key={header.id} sx={{ ...headCellSx, width: 44 }} />;
                                     }
                                     const label = getHeaderLabel(header);
-                                    const Icon = columnIcons[col.id];
+                                    const Icon = columnIcons[label];
                                     return (
                                         <TableCell key={header.id} sx={headCellSx}>
                                             {col.id !== 'action' && (
@@ -278,6 +280,7 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                                 sx={{
                                                     display: 'flex',
                                                     alignItems: 'center',
+                                                    justifyContent: col.id === 'fileName' ? 'center' : 'flex-start',
                                                     gap: 0.5,
                                                     cursor: canSort ? 'pointer' : 'default',
                                                     userSelect: 'none',

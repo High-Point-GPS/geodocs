@@ -1,7 +1,9 @@
 import React from 'react';
 import { Box } from '@mui/material';
 
-import spinnerIcon from '../../../images/spinnerIcon.png';
+// Inlined as a data URI (?inline) so it loads regardless of publicPath — a relative
+// asset URL would resolve against the parent MyGeotab page when embedded, not our host.
+import spinnerIcon from '../../../images/spinnerIcon.png?inline';
 
 /**
  * Branded loading spinner. Renders the GeoDocs badge and spins it while waiting.

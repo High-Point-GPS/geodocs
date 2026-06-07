@@ -84,6 +84,13 @@ module.exports = merge(common, {
 			{
                 test: /\.(png|svg|jpg|gif)$/,
                 exclude: /\.dev/,
+                resourceQuery: /inline/,
+                type: 'asset/inline',
+           },
+			{
+                test: /\.(png|svg|jpg|gif)$/,
+                exclude: /\.dev/,
+                resourceQuery: { not: [/inline/] },
                 // Use webpack 5 asset modules instead of file-loader
                 type: 'asset/resource',
                 generator: {

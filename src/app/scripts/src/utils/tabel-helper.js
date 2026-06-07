@@ -9,7 +9,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CloseIcon from '@mui/icons-material/Close';
 import dayjs from 'dayjs';
 
 import { getFileTypeMeta } from './formatter';
@@ -29,7 +29,7 @@ const FileNameCell = ({ name, hideFromDriver }) => {
     const meta = getFileTypeMeta(name);
     const hidden = !!hideFromDriver;
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
             <Box
                 sx={{
                     width: 34,
@@ -44,6 +44,35 @@ const FileNameCell = ({ name, hideFromDriver }) => {
             >
                 <FileTypeIcon kind={meta.kind} color={meta.color} />
             </Box>
+            <Tooltip title={hidden ? 'Hidden from driver' : 'Visible to driver'} arrow>
+                {hidden ? (
+                    <Box
+                        sx={{
+                            position: 'relative',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <VisibilityIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                        <CloseIcon
+                            sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                fontSize: 18,
+                                color: '#DC2626',
+                                // White halo so the red X reads clearly over the eye lines.
+                                filter: 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)',
+                            }}
+                        />
+                    </Box>
+                ) : (
+                    <VisibilityIcon sx={{ fontSize: 17, color: '#1B7A3D', flexShrink: 0 }} />
+                )}
+            </Tooltip>
             <Box sx={{ minWidth: 0 }}>
                 <Typography
                     sx={{
@@ -74,13 +103,6 @@ const FileNameCell = ({ name, hideFromDriver }) => {
                     >
                         {meta.label}
                     </Box>
-                    <Tooltip title={hidden ? 'Hidden from driver' : 'Visible to driver'} arrow>
-                        {hidden ? (
-                            <VisibilityOffIcon sx={{ fontSize: 15, color: '#94a3b8' }} />
-                        ) : (
-                            <VisibilityIcon sx={{ fontSize: 15, color: '#1B7A3D' }} />
-                        )}
-                    </Tooltip>
                 </Box>
             </Box>
         </Box>

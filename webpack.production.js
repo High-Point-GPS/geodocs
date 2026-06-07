@@ -73,6 +73,13 @@ module.exports = merge(common, {
 			{
 				test: /\.(png|svg|jpg|gif)$/,
 				exclude: /\.dev/,
+				resourceQuery: /inline/,
+				type: 'asset/inline',
+			},
+			{
+				test: /\.(png|svg|jpg|gif)$/,
+				exclude: /\.dev/,
+				resourceQuery: { not: [/inline/] },
 				type: 'asset/resource',
 			},
 		],

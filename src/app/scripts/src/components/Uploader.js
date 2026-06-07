@@ -11,7 +11,7 @@ import {
     Divider,
     Alert,
 } from '@mui/material';
-import { formatOptions, matchGeotabData } from '../utils/formatter';
+import { formatOptions, matchGeotabData, getFileTypeMeta } from '../utils/formatter';
 import dayjs from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -71,6 +71,7 @@ const Uploader = ({
     const [driverCanView, setDriverCanView] = useState(true);
     const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
+    const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
 
     const handleUpdateUploadType = (e) => {
         setUploadType(e.target.value);
@@ -526,6 +527,19 @@ const Uploader = ({
   fetchEditFile();
 }, [editFile]);
 
+    // Build a small thumbnail when the selected/edited file is an image. Reuses the
+    // already-fetched blob in uploadFiles[0], so no extra request is made.
+    useEffect(() => {
+        const file = uploadFiles[0];
+        if (file && getFileTypeMeta(file.name).kind === 'image') {
+            const url = URL.createObjectURL(file);
+            setImagePreviewUrl(url);
+            return () => URL.revokeObjectURL(url);
+        }
+        setImagePreviewUrl(null);
+        return undefined;
+    }, [uploadFiles]);
+
     const sectionCardSx = {
         width: '100%',
         maxWidth: 720,
@@ -579,6 +593,22 @@ const Uploader = ({
                         marginTop: '0.75rem',
                     }}
                 >
+                    {imagePreviewUrl ? (
+                        <Box
+                            component="img"
+                            src={imagePreviewUrl}
+                            alt={editName}
+                            sx={{
+                                maxHeight: 120,
+                                maxWidth: '100%',
+                                objectFit: 'contain',
+                                borderRadius: '10px',
+                                border: '1px solid #e5e7eb',
+                                bgcolor: '#f8fafc',
+                                p: 0.5,
+                            }}
+                        />
+                    ) : null}
                     <Box
                         sx={{
                             display: 'flex',
@@ -603,7 +633,7 @@ const Uploader = ({
                                 label="File Name"
                                 variant="outlined"
                                 value={editName}
-                                sx={{ width: { xs: '90%', sm: '80%', md: '55%' } }}
+                                sx={{ width: { xs: '100%', sm: '95%', md: '85%' } }}
                                 onChange={(e) => setEditName(e.target.value)}
                             />
                             <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
