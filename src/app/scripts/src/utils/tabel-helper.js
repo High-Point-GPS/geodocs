@@ -10,9 +10,12 @@ import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import dayjs from 'dayjs';
 
 import { getFileTypeMeta } from './formatter';
+import FlatbedTrailerIcon from '../components/FlatbedTrailerIcon';
 
 const columnHelper = createColumnHelper();
 
@@ -109,21 +112,35 @@ const FileNameCell = ({ name, hideFromDriver }) => {
     );
 };
 
-const ListCell = ({ value }) => {
+const ListCell = ({ value, icon: Icon }) => {
+    // Empty -> just a muted dash, no icon.
     if (!Array.isArray(value) || value.length === 0) {
         return <Typography sx={{ color: '#cbd5e1' }}>—</Typography>;
     }
     const shown = value.slice(0, 5).join(', ');
     const content = `${shown}${value.length > 5 ? '…' : ''}`;
-    const text = (
-        <Typography sx={{ fontSize: 14, color: '#334155' }}>{content}</Typography>
+    const inner = (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            {Icon ? <Icon sx={{ fontSize: 16, color: '#94a3b8', flexShrink: 0 }} /> : null}
+            <Typography
+                sx={{
+                    fontSize: 14,
+                    color: '#334155',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                }}
+            >
+                {content}
+            </Typography>
+        </Box>
     );
     return value.length > 5 ? (
         <Tooltip title={value.join(', ')} arrow>
-            {text}
+            {inner}
         </Tooltip>
     ) : (
-        text
+        inner
     );
 };
 
@@ -221,19 +238,19 @@ export const columns = [
     }),
     columnHelper.accessor('owners.vehicles', {
         header: () => 'Vehicles',
-        cell: (info) => <ListCell value={info.renderValue()} />,
+        cell: (info) => <ListCell value={info.renderValue()} icon={DirectionsCarOutlinedIcon} />,
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),
     columnHelper.accessor('owners.drivers', {
         header: () => 'Drivers',
-        cell: (info) => <ListCell value={info.renderValue()} />,
+        cell: (info) => <ListCell value={info.renderValue()} icon={PersonOutlinedIcon} />,
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),
     columnHelper.accessor('owners.trailers', {
         header: () => 'Trailers',
-        cell: (info) => <ListCell value={info.renderValue()} />,
+        cell: (info) => <ListCell value={info.renderValue()} icon={FlatbedTrailerIcon} />,
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),

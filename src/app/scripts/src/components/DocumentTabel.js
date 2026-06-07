@@ -50,6 +50,8 @@ import { columns, stringMatchFilter, globalStringFilter } from '../utils/tabel-h
 
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
+import dayjs from 'dayjs';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 
 // Resolve a column's header to its plain text label (header defs are functions returning strings).
 const getHeaderLabel = (header) => {
@@ -84,6 +86,7 @@ const buildPages = (current, count) => {
 const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChange }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
+    const [showExpiredOnly, setShowExpiredOnly] = useState(false);
 
     const formatData = (dataIds, dataKey) => {
         if (!Array.isArray(dataIds) || !geotabData || !geotabData[dataKey]) return dataIds || [];
@@ -109,8 +112,15 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
         });
     }, [files, geotabData]);
 
+    // "Show Expired" filter: narrow to documents whose expiry date is in the past.
+    const tableData = useMemo(() => {
+        if (!showExpiredOnly) return displayFiles;
+        const now = dayjs();
+        return displayFiles.filter((f) => f.expiryDate && dayjs(f.expiryDate) < now);
+    }, [displayFiles, showExpiredOnly]);
+
     const table = useReactTable({
-        data: displayFiles,
+        data: tableData,
         columns: columns,
         getRowId: (row, i) => (row.id != null ? String(row.id) : String(i)),
         enableRowSelection: true,
@@ -149,11 +159,12 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
             return { id: f.id, value: String(f.value), label };
         });
     const hasGlobalFilter = String(globalFilter ?? '').length > 0;
-    const hasActiveFilters = activeFilters.length > 0 || hasGlobalFilter;
+    const hasActiveFilters = activeFilters.length > 0 || hasGlobalFilter || showExpiredOnly;
 
     const clearAllFilters = () => {
         setColumnFilters([]);
         setGlobalFilter('');
+        setShowExpiredOnly(false);
     };
 
     // Report the filtered + sorted order (across all pages) so the preview's prev/next
@@ -280,6 +291,26 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                     );
                                 })}
 
+                                {showExpiredOnly && (
+                                    <Chip
+                                        size="small"
+                                        icon={<EventBusyOutlinedIcon sx={{ fontSize: 15 }} />}
+                                        label="Expired"
+                                        onDelete={() => setShowExpiredOnly(false)}
+                                        sx={{
+                                            bgcolor: '#FEF3E2',
+                                            color: '#C2630B',
+                                            fontWeight: 600,
+                                            borderRadius: '8px',
+                                            '& .MuiChip-icon': { color: '#C2630B' },
+                                            '& .MuiChip-deleteIcon': {
+                                                color: '#C2630B',
+                                                '&:hover': { color: '#9a4e08' },
+                                            },
+                                        }}
+                                    />
+                                )}
+
                                 <Button
                                     size="small"
                                     onClick={clearAllFilters}
@@ -361,6 +392,34 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                                     ))}
                                             </Box>
                                             {canFilter ? <Filter column={col} name={label} /> : null}
+                                            {col.id === 'action' && (
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
+                                                    <Button
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowExpiredOnly((v) => !v);
+                                                        }}
+                                                        variant={showExpiredOnly ? 'contained' : 'outlined'}
+                                                        startIcon={<EventBusyOutlinedIcon sx={{ fontSize: 15 }} />}
+                                                        sx={{
+                                                            textTransform: 'none',
+                                                            fontWeight: 600,
+                                                            fontSize: 11.5,
+                                                            borderRadius: '8px',
+                                                            py: 0.25,
+                                                            px: 1,
+                                                            whiteSpace: 'nowrap',
+                                                            boxShadow: 'none',
+                                                            ...(showExpiredOnly
+                                                                ? { bgcolor: '#C2630B', color: '#fff', '&:hover': { bgcolor: '#9a4e08', boxShadow: 'none' } }
+                                                                : { borderColor: '#f0d6b5', color: '#C2630B', '&:hover': { borderColor: '#C2630B', bgcolor: '#FEF3E2' } }),
+                                                        }}
+                                                    >
+                                                        {showExpiredOnly ? 'Expired' : 'Show Expired'}
+                                                    </Button>
+                                                </Box>
+                                            )}
                                         </TableCell>
                                     );
                                 })}
