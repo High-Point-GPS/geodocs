@@ -5,7 +5,6 @@ import {
 	Typography,
 	IconButton,
 	Button,
-	CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -16,6 +15,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 
 import { getFileTypeMeta } from '../utils/formatter';
+import Spinner from './Spinner';
 
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';
 
@@ -129,7 +129,7 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 		if (loading) {
 			return (
 				<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, color: '#94a3b8' }}>
-					<CircularProgress size={36} />
+					<Spinner size={36} />
 					<Typography variant="body2">Loading preview…</Typography>
 				</Box>
 			);

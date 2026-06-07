@@ -2,7 +2,6 @@ const path = require('path');
 const RemoveEmptyScriptsPlugin = require('webpack-remove-empty-scripts');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
-const ImageMinimizerPlugin = require('image-minimizer-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { merge } = require('webpack-merge');
 const common = require('./webpack.common.js');
@@ -94,28 +93,6 @@ module.exports = merge(common, {
 			formatter: 'stylish',
 		}),
 		new RemoveEmptyScriptsPlugin(),
-		new ImageMinimizerPlugin({
-			exclude: /dev/,
-			test: /\.(jpe?g|png|gif|svg)$/,
-			minimizerOptions: {
-				plugins: [
-					['gifsicle'],
-					['mozjpeg'],
-					['pngquant'],
-					[
-						'svgo',
-						{
-							plugins: [
-								{
-									name: 'cleanupIDs',
-									active: false,
-								},
-							],
-						},
-					],
-				],
-			},
-		}),
 		new CopyWebpackPlugin({
 			patterns: [
 				{ from: './src/app/images/icon.svg', to: 'images/' },

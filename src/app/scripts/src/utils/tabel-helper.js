@@ -2,7 +2,7 @@ import React from 'react';
 import { createColumnHelper, sortingFns } from '@tanstack/react-table';
 
 import { compareItems } from '@tanstack/match-sorter-utils';
-import { Box, Typography, Tooltip, Checkbox } from '@mui/material';
+import { Box, Typography, Tooltip } from '@mui/material';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -180,27 +180,6 @@ const expiryFilter = (row, columnId, filterValue) => {
 };
 
 export const columns = [
-    columnHelper.display({
-        id: 'select',
-        size: 44,
-        enableSorting: false,
-        enableColumnFilter: false,
-        header: ({ table }) => (
-            <Checkbox
-                size="small"
-                checked={table.getIsAllPageRowsSelected()}
-                indeterminate={table.getIsSomePageRowsSelected()}
-                onChange={table.getToggleAllPageRowsSelectedHandler()}
-            />
-        ),
-        cell: ({ row }) => (
-            <Checkbox
-                size="small"
-                checked={row.getIsSelected()}
-                onChange={row.getToggleSelectedHandler()}
-            />
-        ),
-    }),
     columnHelper.accessor('fileName', {
         header: () => 'File',
         cell: (info) => (

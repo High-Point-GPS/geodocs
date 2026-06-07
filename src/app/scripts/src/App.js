@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
     Box,
-    CircularProgress,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -22,6 +21,7 @@ import DocumentTable from './components/DocumentTabel';
 import FileActions from './components/FileActions';
 import FilePreview from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
+import Spinner from './components/Spinner';
 
 import { formatGeotabData, getFileTypeMeta } from './utils/formatter';
 
@@ -526,6 +526,13 @@ const App = ({ api, database, session, server }) => {
 
 	const editMeta = editFile ? getFileTypeMeta(editFile.fileName) : null;
 
+	// Human label for how often the expiry reminder repeats (from the days-before-expiry field).
+	const repeatDaysNum = Number(globalAlertDaysBeforeExpiry);
+	const repeatEveryLabel =
+		Number.isFinite(repeatDaysNum) && repeatDaysNum > 0
+			? `${repeatDaysNum} day${repeatDaysNum === 1 ? '' : 's'}`
+			: 'the set number of days';
+
 	// Drive the preview from the on-screen order (falls back to the raw list until reported).
 	const previewList = orderedFiles.length ? orderedFiles : files;
 	const previewIndex =
@@ -661,16 +668,25 @@ const App = ({ api, database, session, server }) => {
 							inputProps={{ min: 0 }}
 							helperText="How many days before a document expires we should send an alert email."
 						/>
-						<FormControlLabel
-							control={
-								<Checkbox
-									checked={dailyNotifications}
-									onChange={(e) => setDailyNotifications(e.target.checked)}
-									color="primary"
-								/>
-							}
-							label="Enable daily notifications"
-						/>
+						<Box>
+							<FormControlLabel
+								sx={{ mb: 0 }}
+								control={
+									<Checkbox
+										checked={dailyNotifications}
+										onChange={(e) => setDailyNotifications(e.target.checked)}
+										color="primary"
+									/>
+								}
+								label="Enable daily notifications"
+							/>
+							<Typography
+								variant="caption"
+								sx={{ display: 'block', color: 'text.secondary', ml: 4, mt: '-4px' }}
+							>
+								When enabled, the reminder repeats daily, starting {repeatEveryLabel} before the document expires (set above), until the file is removed.
+							</Typography>
+						</Box>
 					</DialogContent>
 					<DialogActions sx={{ px: 3, pb: 2 }}>
 						<Button onClick={() => setSettingsOpen(false)} disabled={settingsSaving}>
@@ -691,7 +707,7 @@ const App = ({ api, database, session, server }) => {
 						height: '100vh',
 					}}
 				>
-					<CircularProgress />
+					<Spinner />
 				</Box>
 			) : (
 				<>

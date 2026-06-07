@@ -25,6 +25,12 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
+import RvHookupOutlinedIcon from '@mui/icons-material/RvHookupOutlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 
 import {
     useReactTable,
@@ -47,6 +53,16 @@ import { CSVLink } from 'react-csv';
 const getHeaderLabel = (header) => {
     const h = header.column.columnDef.header;
     return typeof h === 'function' ? h(header.getContext()) : h;
+};
+
+// Icon shown before each column name in the filter band, keyed by column id.
+const columnIcons = {
+    fileName: InsertDriveFileOutlinedIcon,
+    'owners.groups': GroupsOutlinedIcon,
+    'owners.vehicles': DirectionsCarOutlinedIcon,
+    'owners.drivers': PersonOutlinedIcon,
+    'owners.trailers': RvHookupOutlinedIcon,
+    expiryDate: EventOutlinedIcon,
 };
 
 const buildPages = (current, count) => {
@@ -212,13 +228,29 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                         return <TableCell key={header.id} sx={{ ...headCellSx, width: 44 }} />;
                                     }
                                     const label = getHeaderLabel(header);
+                                    const Icon = columnIcons[col.id];
                                     return (
                                         <TableCell key={header.id} sx={headCellSx}>
-                                            <Typography
-                                                sx={{ fontWeight: 700, fontSize: 12.5, color: '#334155', mb: 0.75 }}
-                                            >
-                                                {label}
-                                            </Typography>
+                                            {col.id !== 'action' && (
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: 0.625,
+                                                        mb: 0.75,
+                                                    }}
+                                                >
+                                                    {Icon ? (
+                                                        <Icon sx={{ fontSize: 16, color: '#64748b' }} />
+                                                    ) : null}
+                                                    <Typography
+                                                        sx={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}
+                                                    >
+                                                        {label}
+                                                    </Typography>
+                                                </Box>
+                                            )}
                                             {col.getCanFilter() ? <Filter column={col} name={label} /> : null}
                                         </TableCell>
                                     );

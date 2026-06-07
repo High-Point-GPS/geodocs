@@ -486,20 +486,138 @@
 }
 
 #HPGPS .Mui-disabled {
-  background-color: lightgray !important;
+  background-color: #f1f5f9 !important;
 }
 
 #HPGPS .disabled {
-  background-color: lightgray !important;
   opacity: 1 !important;
 }
 
-#HPGPS .node {
-  padding: 1rem;
+/* ---- Group tree-select: styled to match the MUI outlined inputs ---- */
+
+#HPGPS .tree-select-hpgps {
+  width: 100%;
 }
 
-#HPGPS element.style {
-  transform: translateY(68px);
+#HPGPS .tree-select-hpgps .dropdown {
+  width: 100%;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-trigger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 3px 10px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-trigger:hover {
+  border-color: #cbd5e1 !important;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-trigger.top {
+  border-color: #26477c !important;
+  box-shadow: 0 0 0 3px rgba(38, 71, 124, 0.12);
+}
+
+#HPGPS .tree-select-hpgps .dropdown-trigger > span:after {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+#HPGPS .tree-select-hpgps .search {
+  border: none !important;
+  outline: none;
+  font-size: 14px;
+  color: #1f2937;
+  padding: 4px 2px;
+  background: transparent;
+}
+
+#HPGPS .tree-select-hpgps .search::placeholder {
+  color: #94a3b8;
+}
+
+/* selected group chips */
+
+#HPGPS .tree-select-hpgps .tag-item {
+  margin: 2px 4px 2px 0;
+}
+
+#HPGPS .tree-select-hpgps .tag {
+  display: inline-flex;
+  align-items: center;
+  background: #eef2f7;
+  border: none;
+  border-radius: 8px;
+  padding: 2px 4px 2px 8px;
+  color: #334155;
+  font-size: 13px;
+}
+
+#HPGPS .tree-select-hpgps .tag-remove {
+  color: #94a3b8;
+  font-size: 16px;
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+
+#HPGPS .tree-select-hpgps .tag-remove:hover {
+  color: #e11d48;
+}
+
+/* dropdown panel */
+
+#HPGPS .tree-select-hpgps .dropdown-content {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12) !important;
+  margin-top: 6px;
+  padding: 6px !important;
+  z-index: 50 !important;
+  max-height: 280px;
+  overflow: auto;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-content .search {
+  width: 100%;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+}
+
+#HPGPS .tree-select-hpgps .node {
+  padding: 6px 8px !important;
+  border-radius: 8px;
+}
+
+#HPGPS .tree-select-hpgps .node:hover {
+  background: #f8fafc;
+}
+
+#HPGPS .tree-select-hpgps .node-label {
+  font-size: 14px;
+  color: #334155;
+}
+
+/* disabled group select */
+
+#HPGPS .tree-select-hpgps.disabled .dropdown-trigger,
+#HPGPS .tree-select-hpgps .dropdown-trigger[aria-disabled='true'] {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 #HPGPS .modal-backdrop {

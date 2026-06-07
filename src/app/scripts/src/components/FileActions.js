@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Box, IconButton, Tooltip, Typography, Button, CircularProgress } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography, Button } from '@mui/material';
 
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import Popup from './Popup';
+import Spinner from './Spinner';
 
 const FileActions = ({ fileData, fileId, database, session, server, onEditFile, onFileDeleted, onValidationError, onPreview }) => {
 	const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -107,7 +108,7 @@ const FileActions = ({ fileData, fileId, database, session, server, onEditFile, 
 				</Box>
 				<Box sx={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
 					{deleteLoad ? (
-						<CircularProgress />
+						<Spinner />
 					) : (
 						<>
 							<Button variant="contained" color="error" onClick={onDeleteConfirmed} sx={{ textTransform: 'none', borderRadius: '10px', px: 3 }}>

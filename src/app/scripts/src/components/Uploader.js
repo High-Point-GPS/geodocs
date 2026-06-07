@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
     Box,
     Typography,
-    CircularProgress,
     FormControlLabel,
     RadioGroup,
     Radio,
@@ -27,6 +26,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
+import Spinner from './Spinner';
 
 
 
@@ -74,12 +74,11 @@ const Uploader = ({
 
     const handleUpdateUploadType = (e) => {
         setUploadType(e.target.value);
-        setSelections({
-            vehicles: [],
-            drivers: [],
-            trailers: [],
-            groups: [],
-        });
+        // Only the active mode is shown, so clear the other mode's data on switch.
+        const emptyData = { vehicles: [], drivers: [], trailers: [], groups: [] };
+        setSelections({ ...emptyData });
+        setUploadData({ ...emptyData });
+        clearGroups();
     };
 
     const handleUpdateUploadData = (type, data) => {
@@ -555,7 +554,7 @@ const Uploader = ({
     return (
         <Box className="geotabToolbar" id="upload-area">
         {editLoad ? (
-            <Box sx={{height: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}> <CircularProgress /></Box>
+            <Box sx={{height: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}> <Spinner /></Box>
         ) : (
             <>
             <Box sx={sectionCardSx}>
@@ -672,110 +671,80 @@ const Uploader = ({
             >
                 <Box sx={sectionCardSx}>
                 <Typography sx={sectionTitleSx}>Associations</Typography>
-                <Box
-                    sx={{
-                        width: { xs: '100%', sm: '100%', md: '75%' },
-                        display: 'flex',
-                        flexDirection: {
-                            xs: 'column',
-                            sm: 'column',
-                            md: 'row',
-                        },
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: { xs: '1rem', sm: '1rem', md: '2rem' },
-                    }}
+                <RadioGroup
+                    row
+                    name="row-radio-buttons-group"
+                    onChange={handleUpdateUploadType}
+                    value={uploadType}
+                    sx={{ justifyContent: 'center', gap: 3, mb: 0.5 }}
                 >
-                    <RadioGroup
-                        name="row-radio-buttons-group"
-                        onChange={handleUpdateUploadType}
-                        defaultValue={'uploadGroup'}
-                        value={uploadType}
-                    >
-                        <Box sx={{ display: 'flex', gap: '2.5rem' }}>
-                            <FormControlLabel
-                                value="uploadGroup"
-                                control={<Radio />}
-                                label="Upload By Group"
-                            />
-                        </Box>
-                        <Box>
-                            <FormControlLabel
-                                value="uploadSelection"
-                                control={<Radio />}
-                                label="Upload By Selection"
-                            />
-                        </Box>
-                    </RadioGroup>
-                    <GroupSelect
-                        groupData={geotabData.groups}
-                        uploadType={uploadType}
-                        onUpdateData={handleUpdateGroup}
-                        forceClear={clearGroup}
+                    <FormControlLabel
+                        value="uploadGroup"
+                        control={<Radio />}
+                        label="Upload By Group"
                     />
-                </Box>
+                    <FormControlLabel
+                        value="uploadSelection"
+                        control={<Radio />}
+                        label="Upload By Selection"
+                    />
+                </RadioGroup>
 
-                <Box
-                    sx={{
-                        paddingLeft: '1.5rem',
-                        paddingRight: '1.5rem',
-                        width: '100%',
-                        display: 'flex',
-                        flexDirection: {
-                            xs: 'column',
-                            sm: 'column',
-                            md: 'row',
-                        },
-                        justifyContent: 'center',
-                        gap: '2rem',
-                    }}
-                >
-                    <AssociateSelect
-                        options={geotabData.vehicles}
-                        label="Vehicle"
-                        currentSelections={selections.vehicles}
-                        onUpdateCurrentSelections={(selections) => {
-                            handleUpdateCurrentSelections(
-                                selections,
-                                'vehicles'
-                            );
+                {uploadType === 'uploadGroup' ? (
+                    <Box sx={{ width: { xs: '100%', md: '80%' } }}>
+                        <GroupSelect
+                            groupData={geotabData.groups}
+                            uploadType={uploadType}
+                            onUpdateData={handleUpdateGroup}
+                            forceClear={clearGroup}
+                        />
+                    </Box>
+                ) : (
+                    <Box
+                        sx={{
+                            width: '100%',
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'column', md: 'row' },
+                            justifyContent: 'center',
+                            gap: '1.5rem',
+                            px: '0.5rem',
                         }}
-                        onUpdateUploadSelections={(data) =>
-                            handleUpdateUploadData('vehicles', data)
-                        }
-                        isDisabled={uploadType !== 'uploadSelection'}
-                    />
-                    <AssociateSelect
-                        options={geotabData.drivers}
-                        label="Driver"
-                        currentSelections={selections.drivers}
-                        onUpdateCurrentSelections={(selections) => {
-                            handleUpdateCurrentSelections(
-                                selections,
-                                'drivers'
-                            );
-                        }}
-                        onUpdateUploadSelections={(data) =>
-                            handleUpdateUploadData('drivers', data)
-                        }
-                        isDisabled={uploadType !== 'uploadSelection'}
-                    />
-                    <AssociateSelect
-                        options={geotabData.trailers}
-                        label="Trailer"
-                        currentSelections={selections.trailers}
-                        onUpdateCurrentSelections={(selections) => {
-                            handleUpdateCurrentSelections(
-                                selections,
-                                'trailers'
-                            );
-                        }}
-                        onUpdateUploadSelections={(data) =>
-                            handleUpdateUploadData('trailers', data)
-                        }
-                        isDisabled={uploadType !== 'uploadSelection'}
-                    />
-                </Box>
+                    >
+                        <AssociateSelect
+                            options={geotabData.vehicles}
+                            label="Vehicle"
+                            currentSelections={selections.vehicles}
+                            onUpdateCurrentSelections={(selected) => {
+                                handleUpdateCurrentSelections(selected, 'vehicles');
+                            }}
+                            onUpdateUploadSelections={(data) =>
+                                handleUpdateUploadData('vehicles', data)
+                            }
+                        />
+                        <AssociateSelect
+                            options={geotabData.drivers}
+                            label="Driver"
+                            currentSelections={selections.drivers}
+                            onUpdateCurrentSelections={(selected) => {
+                                handleUpdateCurrentSelections(selected, 'drivers');
+                            }}
+                            onUpdateUploadSelections={(data) =>
+                                handleUpdateUploadData('drivers', data)
+                            }
+                        />
+                        <AssociateSelect
+                            options={geotabData.trailers}
+                            label="Trailer"
+                            currentSelections={selections.trailers}
+                            onUpdateCurrentSelections={(selected) => {
+                                handleUpdateCurrentSelections(selected, 'trailers');
+                            }}
+                            onUpdateUploadSelections={(data) =>
+                                handleUpdateUploadData('trailers', data)
+                            }
+                        />
+                    </Box>
+                )}
                 </Box>{/* end Associations card */}
 
                 <Box sx={{ width: { xs: '100%', md: '75%' }, mt: 0.5 }}>
@@ -841,7 +810,7 @@ const Uploader = ({
                 </Box>
                 <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     {loading ? (
-                        <CircularProgress />
+                        <Spinner />
                     ) : (
                         <>
                             {editMode ? (
