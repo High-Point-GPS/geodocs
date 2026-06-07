@@ -447,9 +447,27 @@
   border-color: #cbd5e1 !important;
 }
 
+#HPGPS .tree-select-hpgps .dropdown-trigger:hover {
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
 #HPGPS .tree-select-hpgps .dropdown-trigger.top {
   border-color: #26477c !important;
   box-shadow: 0 0 0 3px rgba(38, 71, 124, 0.12);
+}
+
+/* leading search icon inside the trigger — signals it's searchable */
+
+#HPGPS .tree-select-hpgps .dropdown-trigger:before {
+  content: '';
+  flex-shrink: 0;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2718%27 height=%2718%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2326477c%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Ccircle cx=%2711%27 cy=%2711%27 r=%278%27/%3E%3Cline x1=%2721%27 y1=%2721%27 x2=%2716.65%27 y2=%2716.65%27/%3E%3C/svg%3E")
+		center/contain no-repeat;
+  opacity: 0.85;
 }
 
 /* Replace the default unicode triangle with an animated chevron */
@@ -537,6 +555,22 @@
   overflow: auto;
   transform-origin: top center;
   animation: gsPanelIn 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+  border: 2px solid #fff;
+}
+
+#HPGPS .tree-select-hpgps .dropdown-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* search box inside the panel (shown while searching) */
@@ -557,23 +591,51 @@
   align-items: center;
   padding: 7px 8px !important;
   border-radius: 8px;
-  transition: background 120ms ease;
+  transition: background 120ms ease, box-shadow 120ms ease;
   animation: gsNodeIn 160ms ease both;
 }
 
 #HPGPS .tree-select-hpgps .node:hover {
   background: #f4f7fb;
+  box-shadow: inset 3px 0 0 #c7d2e8;
 }
 
 #HPGPS .tree-select-hpgps .node.checked {
   background: #eef2ff;
+  box-shadow: inset 3px 0 0 #26477c;
 }
 
 #HPGPS .tree-select-hpgps .node-label {
+  display: inline-flex;
+  align-items: center;
   font-size: 14px;
   color: #334155;
   cursor: pointer;
   user-select: none;
+}
+
+/* folder icon before each group name */
+
+#HPGPS .tree-select-hpgps .node-label:before {
+  content: '';
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2364748b%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z%27/%3E%3C/svg%3E")
+		center/contain no-repeat;
+}
+
+/* checked rows get a brand-tinted folder icon */
+
+#HPGPS .tree-select-hpgps .node.checked .node-label {
+  color: #26477c;
+  font-weight: 600;
+}
+
+#HPGPS .tree-select-hpgps .node.checked .node-label:before {
+  background: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2326477c%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z%27/%3E%3C/svg%3E")
+		center/contain no-repeat;
 }
 
 /* expand / collapse toggle — rotating chevron (no icon font) */

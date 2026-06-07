@@ -628,7 +628,7 @@ const App = ({ api, database, session, server }) => {
 					<Tooltip title="More Info" arrow>
 						<IconButton
 							aria-label="Help"
-							onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
+							onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank', 'noopener,noreferrer')}
 							sx={{ border: '1px solid #e5e7eb', borderRadius: '10px', bgcolor: '#fff' }}
 						>
 							<HelpOutlineIcon color="primary" />
