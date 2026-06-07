@@ -222,71 +222,35 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                 <TableContainer sx={{ width: '100%' }}>
                     <Table>
                         <TableHead>
-                            {/* Filter band */}
+                            {/* Single header band: sortable column name + icon above each search box */}
                             <TableRow sx={{ bgcolor: '#fbfcfe' }}>
                                 {headers.map((header) => {
                                     const col = header.column;
-                                    if (col.id === 'select') {
-                                        return <TableCell key={header.id} sx={{ ...headCellSx, width: 44 }} />;
-                                    }
                                     const label = getHeaderLabel(header);
                                     const Icon = columnIcons[label];
-                                    return (
-                                        <TableCell key={header.id} sx={headCellSx}>
-                                            {col.id !== 'action' && (
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: 0.625,
-                                                        mb: 0.75,
-                                                    }}
-                                                >
-                                                    {Icon ? (
-                                                        <Icon sx={{ fontSize: 16, color: '#64748b' }} />
-                                                    ) : null}
-                                                    <Typography
-                                                        sx={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}
-                                                    >
-                                                        {label}
-                                                    </Typography>
-                                                </Box>
-                                            )}
-                                            {col.getCanFilter() ? <Filter column={col} name={label} /> : null}
-                                        </TableCell>
-                                    );
-                                })}
-                            </TableRow>
-
-                            {/* Sortable header band */}
-                            <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                                {headers.map((header) => {
-                                    const col = header.column;
-                                    if (col.id === 'select') {
-                                        return (
-                                            <TableCell key={header.id} sx={{ ...headCellSx, width: 44, py: 1 }}>
-                                                {flexRender(col.columnDef.header, header.getContext())}
-                                            </TableCell>
-                                        );
-                                    }
-                                    const label = getHeaderLabel(header);
                                     const sorted = col.getIsSorted();
                                     const canSort = col.getCanSort();
+                                    const canFilter = col.getCanFilter();
                                     return (
-                                        <TableCell key={header.id} sx={{ ...headCellSx, py: 1 }}>
+                                        <TableCell key={header.id} sx={headCellSx}>
                                             <Box
                                                 onClick={canSort ? col.getToggleSortingHandler() : undefined}
                                                 sx={{
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    justifyContent: col.id === 'fileName' ? 'center' : 'flex-start',
-                                                    gap: 0.5,
+                                                    justifyContent: 'center',
+                                                    gap: 0.625,
+                                                    mb: canFilter ? 0.75 : 0,
                                                     cursor: canSort ? 'pointer' : 'default',
                                                     userSelect: 'none',
                                                 }}
                                             >
-                                                <Typography sx={{ fontWeight: 600, fontSize: 13, color: '#475569' }}>
+                                                {Icon ? (
+                                                    <Icon sx={{ fontSize: 16, color: '#64748b' }} />
+                                                ) : null}
+                                                <Typography
+                                                    sx={{ fontWeight: 700, fontSize: 12.5, color: '#334155' }}
+                                                >
                                                     {label}
                                                 </Typography>
                                                 {canSort &&
@@ -298,6 +262,7 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                                         <UnfoldMoreIcon sx={{ fontSize: 15, color: '#cbd5e1' }} />
                                                     ))}
                                             </Box>
+                                            {canFilter ? <Filter column={col} name={label} /> : null}
                                         </TableCell>
                                     );
                                 })}

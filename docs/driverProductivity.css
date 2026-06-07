@@ -401,90 +401,6 @@
   display: none;
 }
 
-@font-face {
-  font-family: 'Material Icons';
-  font-style: normal;
-  font-weight: 400;
-  src: url(https://fonts.gstatic.com/s/materialicons/v36/flUhRq6tzZclQEJ-Vdg-IuiaDsNc.woff2)
-		format('woff2');
-}
-
-#HPGPS .material-icons {
-  font-family: 'Material Icons';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-}
-
-#HPGPS .mdl-demo .dropdown-trigger > span:after {
-  font-size: 12px;
-  color: #555;
-}
-
-#HPGPS .mdl-demo .toggle {
-  font: normal normal normal 18px/1 'Material Icons';
-  color: #555;
-  white-space: pre;
-  margin-right: 4px;
-}
-
-#HPGPS .mdl-demo .toggle.collapsed::after {
-  cursor: pointer;
-  content: '\E5CF';
-  vertical-align: middle;
-}
-
-#HPGPS .mdl-demo .toggle.expanded::after {
-  cursor: pointer;
-  content: '\E5CE';
-  vertical-align: middle;
-}
-
-/* checkbox styles */
-
-#HPGPS .mdl-demo .checkbox-item {
-  position: relative;
-  width: 1rem;
-  height: 1rem;
-  margin-right: 0.75rem;
-  cursor: pointer;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  outline: 0;
-  vertical-align: middle;
-}
-
-#HPGPS .mdl-demo .checkbox-item:before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  border: 2px solid #aaa;
-  transition: all 0.3s ease-in-out;
-}
-
-#HPGPS .mdl-demo .checkbox-item:checked:before {
-  height: 50%;
-  -webkit-transform: rotate(-45deg);
-  transform: rotate(-45deg);
-  border-top-style: none;
-  border-right-style: none;
-  border-color: #2196f3;
-}
-
 #HPGPS .Mui-disabled {
   background-color: #f1f5f9 !important;
 }
@@ -493,7 +409,12 @@
   opacity: 1 !important;
 }
 
-/* ---- Group tree-select: styled to match the MUI outlined inputs ---- */
+/* ============================================================
+   Group tree-select — refined look + smooth open/expand.
+   Self-contained: draws its own chevrons/checkbox so it no
+   longer depends on the Material Icons web-font (which often
+   fails to load inside the MyGeotab embed, leaving a bare "+").
+   ============================================================ */
 
 #HPGPS .tree-select-hpgps {
   width: 100%;
@@ -501,20 +422,25 @@
 
 #HPGPS .tree-select-hpgps .dropdown {
   width: 100%;
+  position: relative;
 }
+
+/* Trigger (the input box) */
 
 #HPGPS .tree-select-hpgps .dropdown-trigger {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 2px;
   width: 100%;
-  min-height: 40px;
-  padding: 3px 10px !important;
+  min-height: 42px;
+  padding: 4px 12px !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 10px !important;
   background: #fff;
   box-sizing: border-box;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 #HPGPS .tree-select-hpgps .dropdown-trigger:hover {
@@ -526,18 +452,39 @@
   box-shadow: 0 0 0 3px rgba(38, 71, 124, 0.12);
 }
 
-#HPGPS .tree-select-hpgps .dropdown-trigger > span:after {
-  color: #94a3b8;
-  font-size: 12px;
+/* Replace the default unicode triangle with an animated chevron */
+
+#HPGPS .tree-select-hpgps .dropdown-trigger.arrow.bottom:after,
+#HPGPS .tree-select-hpgps .dropdown-trigger.arrow.top:after,
+#HPGPS .tree-select-hpgps .dropdown-trigger.arrow.disabled:after {
+  content: '';
+  margin-left: auto;
+  align-self: center;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8;
+  border-radius: 1px;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+#HPGPS .tree-select-hpgps .dropdown-trigger.arrow.top:after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+/* search / placeholder input inside the trigger */
 
 #HPGPS .tree-select-hpgps .search {
   border: none !important;
   outline: none;
   font-size: 14px;
   color: #1f2937;
-  padding: 4px 2px;
+  padding: 5px 2px;
   background: transparent;
+  flex: 1;
+  min-width: 90px;
 }
 
 #HPGPS .tree-select-hpgps .search::placeholder {
@@ -547,24 +494,26 @@
 /* selected group chips */
 
 #HPGPS .tree-select-hpgps .tag-item {
-  margin: 2px 4px 2px 0;
+  margin: 3px 5px 3px 0;
 }
 
 #HPGPS .tree-select-hpgps .tag {
   display: inline-flex;
   align-items: center;
-  background: #eef2f7;
-  border: none;
+  background: #eef2ff;
+  border: 1px solid #dbe2f5;
   border-radius: 8px;
-  padding: 2px 4px 2px 8px;
-  color: #334155;
+  padding: 3px 4px 3px 10px;
+  color: #26477c;
   font-size: 13px;
+  font-weight: 600;
+  animation: gsTagIn 140ms ease both;
 }
 
 #HPGPS .tree-select-hpgps .tag-remove {
-  color: #94a3b8;
+  color: #8aa0c8;
   font-size: 16px;
-  margin-left: 4px;
+  margin-left: 6px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -580,34 +529,139 @@
 #HPGPS .tree-select-hpgps .dropdown-content {
   border: 1px solid #e5e7eb !important;
   border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12) !important;
-  margin-top: 6px;
-  padding: 6px !important;
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.14) !important;
+  margin-top: 8px;
+  padding: 8px !important;
   z-index: 50 !important;
-  max-height: 280px;
+  max-height: 300px;
   overflow: auto;
+  transform-origin: top center;
+  animation: gsPanelIn 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* search box inside the panel (shown while searching) */
 
 #HPGPS .tree-select-hpgps .dropdown-content .search {
   width: 100%;
   border: 1px solid #e5e7eb !important;
   border-radius: 8px;
-  padding: 6px 10px;
-  margin-bottom: 6px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
 }
 
+/* tree nodes — each one fades/slides in, so expanding a parent
+   reveals its children with a subtle animation */
+
 #HPGPS .tree-select-hpgps .node {
-  padding: 6px 8px !important;
+  display: flex;
+  align-items: center;
+  padding: 7px 8px !important;
   border-radius: 8px;
+  transition: background 120ms ease;
+  animation: gsNodeIn 160ms ease both;
 }
 
 #HPGPS .tree-select-hpgps .node:hover {
-  background: #f8fafc;
+  background: #f4f7fb;
+}
+
+#HPGPS .tree-select-hpgps .node.checked {
+  background: #eef2ff;
 }
 
 #HPGPS .tree-select-hpgps .node-label {
   font-size: 14px;
   color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* expand / collapse toggle — rotating chevron (no icon font) */
+
+#HPGPS .tree-select-hpgps .toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0;
+  color: transparent;
+  transition: background 120ms ease;
+}
+
+#HPGPS .tree-select-hpgps .toggle:hover {
+  background: #e8eefb;
+}
+
+#HPGPS .tree-select-hpgps .toggle.collapsed:after,
+#HPGPS .tree-select-hpgps .toggle.expanded:after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid #475569;
+  border-bottom: 2px solid #475569;
+  border-radius: 1px;
+  transform: rotate(-45deg);
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#HPGPS .tree-select-hpgps .toggle.expanded:after {
+  transform: rotate(45deg);
+}
+
+/* modern, brand-colored checkbox */
+
+#HPGPS .tree-select-hpgps .checkbox-item {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0 10px 0 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  outline: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+#HPGPS .tree-select-hpgps .checkbox-item:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+#HPGPS .tree-select-hpgps .checkbox-item:hover:before {
+  border-color: #94a3b8;
+}
+
+#HPGPS .tree-select-hpgps .checkbox-item:checked:before {
+  background: #26477c;
+  border-color: #26477c;
+}
+
+#HPGPS .tree-select-hpgps .checkbox-item:after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 140ms ease;
+}
+
+#HPGPS .tree-select-hpgps .checkbox-item:checked:after {
+  transform: rotate(45deg) scale(1);
 }
 
 /* disabled group select */
@@ -618,6 +672,46 @@
   border-color: #e2e8f0 !important;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+#HPGPS .tree-select-hpgps.disabled .dropdown-trigger.arrow.disabled:after {
+  border-color: #cbd5e1;
+}
+
+@keyframes gsPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gsNodeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gsTagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 #HPGPS .modal-backdrop {

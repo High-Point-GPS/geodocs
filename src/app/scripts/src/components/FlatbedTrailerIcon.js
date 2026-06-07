@@ -1,8 +1,9 @@
 import React from 'react';
 import { SvgIcon } from '@mui/material';
 
-// Custom flatbed trailer glyph (MUI has no flatbed icon): a flat deck on a tandem
-// axle with a tow tongue at the front. Outlined to match the other column icons.
+// Custom flatbed trailer glyph (MUI has no flatbed icon): a flat deck with a hitch
+// loop + tow tongue at the front, a jack leg, and tandem rear wheels. Outlined to
+// match the weight/color of the other column icons.
 const FlatbedTrailerIcon = (props) => (
     <SvgIcon viewBox="0 0 24 24" {...props}>
         <g
@@ -12,15 +13,16 @@ const FlatbedTrailerIcon = (props) => (
             strokeLinecap="round"
             strokeLinejoin="round"
         >
-            {/* tow tongue */}
-            <path d="M2 11.5h3.2" />
+            {/* hitch loop + tow tongue */}
+            <circle cx="2.7" cy="12.3" r="0.9" />
+            <path d="M3.6 12.3h2.4" />
             {/* flat deck */}
-            <rect x="5" y="10.4" width="16" height="2.6" rx="0.6" />
-            {/* drops to the axle */}
-            <path d="M9 13v1.4M17 13v1.4" />
-            {/* tandem wheels */}
-            <circle cx="10" cy="16.6" r="1.9" />
-            <circle cx="16" cy="16.6" r="1.9" />
+            <rect x="5.5" y="10.7" width="15.5" height="2.4" rx="0.8" />
+            {/* front jack leg */}
+            <path d="M7.3 13.1v2.4" />
+            {/* tandem rear wheels */}
+            <circle cx="15" cy="16.3" r="1.8" />
+            <circle cx="18.4" cy="16.3" r="1.8" />
         </g>
     </SvgIcon>
 );
