@@ -1,15 +1,7 @@
-@import 'filepond/dist/filepond.min.css';
 @import 'react-dropdown-tree-select/dist/styles.css';
 
 .hidden {
 	display: none;
-}
-
-.filepond--root .filepond--drop-label {
-	background-color: rgba(25, 118, 210, 0.5);
-	color: white;
-	font-weight: bold;
-	border-radius: 10px;
 }
 
 @font-face {
@@ -110,10 +102,6 @@
 
 element.style {
 	transform: translateY(68px);
-}
-
-.filepond--root .filepond--credits {
-	display: none !important;
 }
 
 .modal-backdrop {

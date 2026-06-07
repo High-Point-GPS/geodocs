@@ -4,22 +4,26 @@ import {
     Typography,
     CircularProgress,
     FormControlLabel,
-    Checkbox,
     RadioGroup,
     Radio,
     TextField,
-    Switch,
     IconButton,
-    Tooltip
+    Tooltip,
+    Divider,
+    Alert,
 } from '@mui/material';
-import { formatGeotabData, formatOptions, matchGeotabData } from '../utils/formatter';
+import { formatOptions, matchGeotabData } from '../utils/formatter';
 import dayjs from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Button } from '@mui/material';
-import { FilePond } from 'react-filepond';
+import FileDropzone from './FileDropzone';
 import ClearIcon from '@mui/icons-material/Clear';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
@@ -29,13 +33,12 @@ import GroupSelect from './GroupSelect';
 const Uploader = ({
     database,
     onFileUploaded,
-    api,
     session,
     server,
     editFile,
     onEditComplete,
     onValidationError,
-    databaseConfig,
+    onCancel,
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
 }) => {
@@ -192,7 +195,6 @@ const Uploader = ({
     const handleCancelEdit = () => {
         clearUploadForm();
         setEditMode(false);
-        setEditFile(null);
     };
 
     const handeEditFile = async () => {
@@ -205,7 +207,7 @@ const Uploader = ({
             return;
         }
 
-        if (!isThereUploadData() === '') {
+        if (!isThereUploadData()) {
             setError(
                 'Must select either a Vehicle, Driver, Trailer, or a Group to associate file to.'
             );
@@ -284,11 +286,20 @@ const Uploader = ({
             }
 
             clearUploadForm();
-            onEditComplete(editFile.id, { ...data, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView });
+            // Force every edited field into the local row so the table reflects the save
+            // immediately, regardless of which fields the backend echoes back.
+            onEditComplete(editFile.id, {
+                ...data,
+                fileName: fullFileName,
+                owners,
+                tags,
+                expiryDate: expiryDate ? expiryDate.toISOString() : null,
+                alertEmail: normalizedAlertEmail,
+                hideFromDriver: !driverCanView,
+            });
             setSuccess('File successfully updated!');
             setTimeout(() => setSuccess(''), 3000);
             setEditMode(false);
-            setEditFile(null);
         } catch (err) {
             console.error(err);
             setError(err.message);
@@ -407,10 +418,6 @@ const Uploader = ({
         return { ...responseData, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView };
     };
 
-    const findDevice = (inputDevice, billingDevices) => {
-        return billingDevices.findIndex((x) => x.serialNumber === inputDevice.serialNumber) !== -1;
-    };
-
     useEffect(() => {
   if (editFile === null) return;
 
@@ -445,7 +452,7 @@ const Uploader = ({
       if (!response.ok) {
         const errorData = await response.json();
         if (errorData.valid === false) {
-          setValidationError(true);
+          onValidationError();
         }
         console.error('Failed to fetch edit file:', errorData.error || '');
         return;
@@ -520,6 +527,30 @@ const Uploader = ({
   fetchEditFile();
 }, [editFile]);
 
+    const sectionCardSx = {
+        width: '100%',
+        maxWidth: 720,
+        mx: 'auto',
+        mt: 2,
+        p: 2,
+        border: '1px solid #e8edf3',
+        borderRadius: '14px',
+        bgcolor: '#fff',
+        boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1.25,
+    };
+
+    const sectionTitleSx = {
+        width: '100%',
+        fontSize: 12,
+        fontWeight: 700,
+        color: '#94a3b8',
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+    };
 
     return (
         <Box className="geotabToolbar" id="upload-area">
@@ -527,14 +558,14 @@ const Uploader = ({
             <Box sx={{height: '250px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}> <CircularProgress /></Box>
         ) : (
             <>
+            <Box sx={sectionCardSx}>
+                <Typography sx={sectionTitleSx}>File details</Typography>
  {!editMode ? (
              <>
-                <FilePond
+                <FileDropzone
                     files={uploadFiles}
-                    onupdatefiles={setUploadFiles}
-                    allowMultiple={editMode ? false : true}
-                    name="files" /* sets the file input name, it's filepond by default */
-                    labelIdle='Drag & Drop your files or <span class="filepond--label-action">Browse</span>'
+                    onChange={setUploadFiles}
+                    multiple
                 />
                     
                 </>
@@ -580,20 +611,55 @@ const Uploader = ({
                                 {fileExtension}
                             </Typography>
                         </Box>
-                        <FormControlLabel
-                            sx={{ alignSelf: 'center', marginRight: 0 }}
-                            control={
-                                <Checkbox
-                                    checked={driverCanView}
-                                    onChange={(e) => setDriverCanView(e.target.checked)}
-                                    color="primary"
-                                />
-                            }
-                            label="Driver can view"
-                        />
                     </Box>
                 </Box>
             )}
+
+            {/* Driver visibility — shown for both new uploads and edits */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '12px',
+                        px: 2,
+                        py: 0.75,
+                        bgcolor: '#f8fafc',
+                    }}
+                >
+                    {driverCanView ? (
+                        <VisibilityIcon sx={{ color: '#1B7A3D' }} fontSize="small" />
+                    ) : (
+                        <VisibilityOffIcon sx={{ color: '#94a3b8' }} fontSize="small" />
+                    )}
+                    <Tooltip title="Choose whether the driver can see this document" arrow>
+                        <Typography sx={{ fontWeight: 600, color: '#334155' }}>
+                            Visible to driver
+                        </Typography>
+                    </Tooltip>
+                    <RadioGroup
+                        row
+                        value={driverCanView ? 'yes' : 'no'}
+                        onChange={(e) => setDriverCanView(e.target.value === 'yes')}
+                        sx={{ ml: 0.5 }}
+                    >
+                        <FormControlLabel
+                            value="yes"
+                            control={<Radio color="primary" size="small" />}
+                            label="Yes"
+                        />
+                        <FormControlLabel
+                            value="no"
+                            control={<Radio color="primary" size="small" />}
+                            label="No"
+                            sx={{ mr: 0 }}
+                        />
+                    </RadioGroup>
+                </Box>
+            </Box>
+            </Box>{/* end File details card */}
 
             <Box
                 sx={{
@@ -604,6 +670,8 @@ const Uploader = ({
                     gap: '1rem',
                 }}
             >
+                <Box sx={sectionCardSx}>
+                <Typography sx={sectionTitleSx}>Associations</Typography>
                 <Box
                     sx={{
                         width: { xs: '100%', sm: '100%', md: '75%' },
@@ -708,6 +776,16 @@ const Uploader = ({
                         isDisabled={uploadType !== 'uploadSelection'}
                     />
                 </Box>
+                </Box>{/* end Associations card */}
+
+                <Box sx={{ width: { xs: '100%', md: '75%' }, mt: 0.5 }}>
+                    <Divider sx={{ '&::before, &::after': { borderColor: '#e5e7eb' } }}>
+                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' }}>
+                            EXPIRATION (OPTIONAL)
+                        </Typography>
+                    </Divider>
+                </Box>
+
                 <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     <Box
                         sx={{
@@ -761,7 +839,7 @@ const Uploader = ({
                         ) : null}
                     </Box>
                 </Box>
-                <Box>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     {loading ? (
                         <CircularProgress />
                     ) : (
@@ -770,27 +848,53 @@ const Uploader = ({
                                 <Box
                                     sx={{
                                         display: 'flex',
-                                        flexDirection: {
-                                            xs: 'column',
-                                            sm: 'row',
-                                        },
-                                        gap: { xs: '1rem', sm: '0.5rem' },
+                                        flexDirection: { xs: 'column-reverse', sm: 'row' },
+                                        gap: 1.5,
                                     }}
                                 >
                                     <Button
+                                        variant="outlined"
+                                        onClick={() => (onCancel ? onCancel() : handleCancelEdit())}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            borderRadius: '10px',
+                                            px: 3,
+                                            borderColor: '#e5e7eb',
+                                            color: '#334155',
+                                            '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
                                         variant="contained"
                                         onClick={handeEditFile}
+                                        startIcon={<SaveOutlinedIcon />}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            borderRadius: '10px',
+                                            px: 4,
+                                            boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
+                                        }}
                                     >
-                                        Save
+                                        Save Changes
                                     </Button>
                                 </Box>
                             ) : (
                                 <Button
                                     variant="contained"
                                     onClick={handleUpload}
+                                    startIcon={<CloudUploadIcon />}
                                     sx={{
-                                        fontWeight: 'bold',
-                                        fontSize: '18px',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        fontSize: '16px',
+                                        borderRadius: '10px',
+                                        px: 4,
+                                        py: 1,
+                                        boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
                                     }}
                                 >
                                     Upload
@@ -800,14 +904,16 @@ const Uploader = ({
                     )}
                 </Box>
 
-                <Box>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', px: 2 }}>
                     {error !== '' && (
-                        <Typography className="errorText">{error}</Typography>
+                        <Alert severity="error" sx={{ borderRadius: '10px', width: '100%', maxWidth: 520 }}>
+                            {error}
+                        </Alert>
                     )}
                     {success !== '' && (
-                        <Typography className="successText">
+                        <Alert severity="success" sx={{ borderRadius: '10px', width: '100%', maxWidth: 520 }}>
                             {success}
-                        </Typography>
+                        </Alert>
                     )}
                 </Box>
             </Box>

@@ -1,31 +1,33 @@
-import React, { useEffect, useState } from 'react';
-import { 
-    Box, 
-    CircularProgress, 
-    Dialog, 
-    DialogTitle, 
-    DialogContent, 
-    Typography, 
-    DialogActions, 
-    Button, 
-    Tooltip, 
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+    Box,
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    Typography,
+    DialogActions,
+    Button,
+    Tooltip,
     IconButton,
 	TextField,
-    AppBar,
-    Toolbar,
+    Badge,
     Checkbox,
     FormControlLabel,
 } from '@mui/material';
+import dayjs from 'dayjs';
 
 import Uploader from './components/Uploader';
 import DocumentTable from './components/DocumentTabel';
 import FileActions from './components/FileActions';
+import FilePreview from './components/FilePreview';
+import FileTypeGlyph from './components/FileTypeGlyph';
 
-import { formatGeotabData } from './utils/formatter';
+import { formatGeotabData, getFileTypeMeta } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import CloseIcon from '@mui/icons-material/Close'; 
-import NotificationsIcon from '@mui/icons-material/Notifications';
+import CloseIcon from '@mui/icons-material/Close';
+import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined';
 
 import '../../styles/app-styles.css';
 
@@ -44,7 +46,52 @@ const theme = createTheme({
 		main: '#FF7404',
 	}
   },
-  // optional: set app-wide fon
+  typography: {
+    fontFamily: 'Roboto, "Segoe UI", Helvetica, Arial, sans-serif',
+  },
+  components: {
+    // Professional, consistent text inputs everywhere (search, filters, dialogs, uploader).
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          backgroundColor: '#ffffff',
+          transition: 'border-color 120ms ease, box-shadow 120ms ease',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#e2e8f0',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#cbd5e1',
+          },
+          '&.Mui-focused': {
+            boxShadow: '0 0 0 3px rgba(38, 71, 124, 0.12)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#26477C',
+            borderWidth: 1,
+          },
+          '&.Mui-disabled': {
+            backgroundColor: '#f1f5f9',
+          },
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: '#64748b',
+          '&.Mui-focused': { color: '#26477C' },
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        input: {
+          '&::placeholder': { color: '#94a3b8', opacity: 1 },
+        },
+      },
+    },
+  },
 });
 
 
@@ -71,6 +118,21 @@ const App = ({ api, database, session, server }) => {
 	const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
     const [uploaderOpen, setUploaderOpen] = useState(false);
+	// Preview is tracked by file id (not a raw-array index) so prev/next can follow the
+	// order the user actually sees; the table/mobile view reports its displayed order here.
+	const [previewFileId, setPreviewFileId] = useState(null);
+	const [orderedFiles, setOrderedFiles] = useState([]);
+
+	// Number of documents that are expired or expiring within the alert window — drives the bell badge.
+	const expiringCount = useMemo(() => {
+		const days = Number(databaseConfig?.alertDaysBeforeExpiry);
+		const threshold = Number.isFinite(days) ? days : 7;
+		const now = dayjs();
+		return files.filter((f) => {
+			if (!f.expiryDate) return false;
+			return dayjs(f.expiryDate).diff(now, 'day') <= threshold;
+		}).length;
+	}, [files, databaseConfig]);
 
 	const getAlertSettingsFromConfig = (config) => ({
 		email: config?.alertEmail ?? '',
@@ -440,6 +502,7 @@ const App = ({ api, database, session, server }) => {
 					onEditFile={handeEditFile}
 					onFileDeleted={handleFileDeleted}
 					onValidationError={() => setValidationError(true)}
+					onPreview={() => setPreviewFileId(file.id)}
 					database={database}
 					session={session}
 					server={server}
@@ -461,58 +524,114 @@ const App = ({ api, database, session, server }) => {
 		return () => window.removeEventListener('resize', updateSize);
 	}, []);
 
+	const editMeta = editFile ? getFileTypeMeta(editFile.fileName) : null;
+
+	// Drive the preview from the on-screen order (falls back to the raw list until reported).
+	const previewList = orderedFiles.length ? orderedFiles : files;
+	const previewIndex =
+		previewFileId == null
+			? null
+			: (() => {
+					const i = previewList.findIndex((f) => f.id === previewFileId);
+					return i >= 0 ? i : null;
+			  })();
+
 	return (
 	<ThemeProvider theme={theme}>
       <CssBaseline />
-		<Box sx={{ flexGrow: 1 }}>
-			<AppBar position="static" sx={{ marginBottom: 3 }}>
-				<Toolbar sx={{backgroundColor: '#fefefe', display: 'flex', justifyContent: 'space-between'}}>
-					<Box sx={{display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1}}>
-						<img src="https://storage.googleapis.com/geotab_mp_images/solution_logos/3e9cd368-d677-4112-999e-15d654cbe7f9.png" alt="GeoDocs Logo" style={{ height: 40, borderRadius: '5px' }} />
-						<Typography color="primary" variant="h6" component="div" sx={{ flexGrow: 1, display: { xs: 'none', md: 'inline' } }}>
+		<Box sx={{ flexGrow: 1, bgcolor: '#f8fafc', minHeight: '100vh' }}>
+			{/* Header */}
+			<Box
+				sx={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					flexWrap: 'wrap',
+					gap: 2,
+					px: { xs: 2, md: 3 },
+					py: 2.5,
+				}}
+			>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75 }}>
+					<Box
+						sx={{
+							width: 46,
+							height: 46,
+							borderRadius: '12px',
+							overflow: 'hidden',
+							flexShrink: 0,
+							boxShadow: '0 2px 6px rgba(16,24,40,0.12)',
+						}}
+					>
+						<img
+							src="https://storage.googleapis.com/geotab_mp_images/solution_logos/3e9cd368-d677-4112-999e-15d654cbe7f9.png"
+							alt="GeoDocs Logo"
+							style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+						/>
+					</Box>
+					<Box>
+						<Typography sx={{ fontWeight: 700, fontSize: 22, color: '#1f2937', lineHeight: 1.2 }}>
 							GeoDocs
 						</Typography>
+						<Typography sx={{ fontSize: 13.5, color: '#6b7280' }}>
+							Store, organize, and manage important documents.
+						</Typography>
 					</Box>
-	
+				</Box>
+
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
 					<Button
-						color="primary"
-						variant="outlined"
+						variant="contained"
 						onClick={() => setUploaderOpen(true)}
-						sx={{ 
-							marginRight: 2,
-							'&:hover': {
-								backgroundColor: 'rgba(255, 255, 255, 0.1)'
-							}
+						startIcon={<CloudUploadIcon />}
+						sx={{
+							textTransform: 'none',
+							fontWeight: 600,
+							borderRadius: '10px',
+							px: 2.5,
+							py: 1,
+							boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
 						}}
-						  startIcon={<CloudUploadIcon />}
 					>
-						Upload
+						Upload Files
 					</Button>
-					<Tooltip title="Document Expiration Notifications" arrow>
-						<IconButton
-							aria-label="Document Expiration Notifications"
+					<Tooltip title="Configure expiry email alerts" arrow>
+						<Button
+							variant="outlined"
 							onClick={() => setSettingsOpen(true)}
-							size="large"
-							color="primary"
+							startIcon={
+								<Badge badgeContent={expiringCount} color="error">
+									<MarkEmailUnreadOutlinedIcon />
+								</Badge>
+							}
+							sx={{
+								textTransform: 'none',
+								fontWeight: 600,
+								borderRadius: '10px',
+								borderColor: '#e5e7eb',
+								color: '#334155',
+								bgcolor: '#fff',
+								px: 2,
+								'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+							}}
 						>
-							<NotificationsIcon />
-						</IconButton>
+							Expiry Notifications
+						</Button>
 					</Tooltip>
 					<Tooltip title="More Info" arrow>
 						<IconButton
 							aria-label="Help"
 							onClick={() => window.open('https://www.highpointgps.com/geodocs/', '_blank')}
-							size="large"
-							color="primary"
+							sx={{ border: '1px solid #e5e7eb', borderRadius: '10px', bgcolor: '#fff' }}
 						>
-							<HelpOutlineIcon />
+							<HelpOutlineIcon color="primary" />
 						</IconButton>
 					</Tooltip>
-				</Toolbar>
-			</AppBar>
+				</Box>
+			</Box>
 
-				<Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="sm" fullWidth>
-					<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+				<Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+					<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eef2f7' }}>
 						Global Alert Settings
 						<IconButton
 							aria-label="close settings"
@@ -576,15 +695,18 @@ const App = ({ api, database, session, server }) => {
 				</Box>
 			) : (
 				<>
-					{/* DocumentTable now hosts the Upload button in its header via onOpenUploader */}
 					{mobile ? (
-						<DocumentMobile files={tableFiles} geotabData={geotabData} onOpenUploader={() => setUploaderOpen(true)} />
+						<DocumentMobile
+							files={tableFiles}
+							geotabData={geotabData}
+							onOrderedFilesChange={setOrderedFiles}
+						/>
 					) : (
 						<DocumentTable
 							files={tableFiles}
 							geotabData={geotabData}
 							globalAlertEmail={databaseConfig?.alertEmail || ''}
-							onOpenUploader={() => setUploaderOpen(true)}
+							onOrderedFilesChange={setOrderedFiles}
 						/>
 					)}
 				</>
@@ -602,8 +724,42 @@ const App = ({ api, database, session, server }) => {
 				maxWidth="lg" 
 				fullWidth
 			>
-				<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-					{editFile ? 'Edit File' : 'Upload File'}
+				<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eef2f7' }}>
+					{editFile ? (
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+								<FileTypeGlyph fileName={editFile.fileName} size={44} iconSize={24} radius={12} />
+								<Box sx={{ minWidth: 0 }}>
+									<Typography
+										sx={{
+											fontWeight: 700,
+											fontSize: 18,
+											color: '#1f2937',
+											lineHeight: 1.2,
+											whiteSpace: 'nowrap',
+											overflow: 'hidden',
+											textOverflow: 'ellipsis',
+											maxWidth: { xs: 180, sm: 360, md: 520 },
+										}}
+									>
+										{editFile.fileName}
+									</Typography>
+									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: '3px' }}>
+										{editMeta && (
+											<Box sx={{ px: 0.75, py: '1px', borderRadius: '6px', bgcolor: editMeta.bg, color: editMeta.color, fontSize: 11, fontWeight: 700, letterSpacing: '0.03em' }}>
+												{editMeta.label}
+											</Box>
+										)}
+										<Typography variant="caption" sx={{ color: '#94a3b8' }}>
+											Edit document details
+										</Typography>
+									</Box>
+								</Box>
+							</Box>
+						) : (
+							<Typography sx={{ fontWeight: 700, fontSize: 18, color: '#1f2937' }}>
+								Upload File
+							</Typography>
+						)}
 					<IconButton
 						aria-label="close"
 						onClick={() => {
@@ -624,12 +780,11 @@ const App = ({ api, database, session, server }) => {
 						database={database}
 						session={session}
 						server={server}
-						api={api}
 						onFileUploaded={(docs) => { handleFilesUploaded(docs); setUploaderOpen(false); }}
 						onValidationError={() => setValidationError(true)}
 						editFile={editFile}
 						onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
-						databaseConfig={databaseConfig}
+						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 					/>
@@ -669,6 +824,17 @@ const App = ({ api, database, session, server }) => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+
+			<FilePreview
+				files={previewList}
+				index={previewIndex}
+				onClose={() => setPreviewFileId(null)}
+				onNavigate={(i) => setPreviewFileId(previewList[i] ? previewList[i].id : null)}
+				database={database}
+				session={session}
+				server={server}
+				onValidationError={() => setValidationError(true)}
+			/>
 		</Box>
 		</ThemeProvider>
 	);

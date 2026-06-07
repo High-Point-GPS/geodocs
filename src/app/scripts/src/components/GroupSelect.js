@@ -3,19 +3,6 @@ import React from 'react';
 import DropdownTreeSelect from 'react-dropdown-tree-select';
 
 const GroupSelect = ({ groupData, onUpdateData, uploadType }) => {
-	const filterChecks = (groups, selectedNodes) => {
-		groups.forEach((group) => {
-			const idx = selectedNodes.findIndex((sn) => sn.label === group.label);
-			const nowChecked = idx !== -1;
-			group.checked = nowChecked;
-			if (group.children && group.children.length > 0) {
-				group.children = filterChecks(group.children, selectedNodes);
-			}
-		});
-
-		return groups;
-	};
-
 	const onGroupChange = (currentNode, selectedNodes) => {
 		const newGroupData = selectedNodes.map((node) => {
 			return {

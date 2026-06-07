@@ -1,3 +1,25 @@
+// Returns display metadata for a file based on its extension:
+// a short label, a "kind" used to pick an icon/preview mode, and badge colors.
+export const getFileTypeMeta = (fileName = '') => {
+	const ext = (String(fileName).split('.').pop() || '').toLowerCase();
+
+	const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic'];
+
+	if (imageExts.includes(ext)) {
+		return { ext, label: ext.toUpperCase(), kind: 'image', color: '#6D4AFF', bg: '#EDEAFF' };
+	}
+	if (ext === 'pdf') {
+		return { ext, label: 'PDF', kind: 'pdf', color: '#E11D48', bg: '#FFE4E6' };
+	}
+	if (['doc', 'docx'].includes(ext)) {
+		return { ext, label: ext.toUpperCase(), kind: 'doc', color: '#2563EB', bg: '#DBEAFE' };
+	}
+	if (['xls', 'xlsx', 'csv'].includes(ext)) {
+		return { ext, label: ext.toUpperCase(), kind: 'sheet', color: '#15803D', bg: '#DCFCE7' };
+	}
+	return { ext: ext || 'file', label: (ext || 'FILE').toUpperCase(), kind: 'other', color: '#475569', bg: '#E2E8F0' };
+};
+
 export const formatOptions = (data) => {
 	return data.map((d) => {
 		return {

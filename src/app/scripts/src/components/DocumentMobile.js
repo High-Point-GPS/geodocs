@@ -7,15 +7,17 @@ import {
     AccordionActions,
     Typography,
     Chip,
-    Button,
+    Tooltip,
 } from '@mui/material';
 import DebouncedInput from './DebouncedInput';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
-const DocumentMobile = ({ files, geotabData }) => {
+const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [filterFiles, setFilterFiles] = useState([]);
@@ -30,6 +32,11 @@ const DocumentMobile = ({ files, geotabData }) => {
             setFilterFiles(newFilterFiles);
         }
     }, [globalFilter, files]);
+
+    // Report the visible order so the shared preview's prev/next matches this list.
+    useEffect(() => {
+        if (onOrderedFilesChange) onOrderedFilesChange(filterFiles);
+    }, [filterFiles, onOrderedFilesChange]);
 
     const formatData = (dataIds, dataKey) => {
         return dataIds.map(id => {
@@ -73,6 +80,13 @@ const DocumentMobile = ({ files, geotabData }) => {
             </Box>
             <Box sx={{ width: '100%' }}>
                 {filterFiles.map((file) => {
+                    // Mobile consumes the raw (un-normalized) file list, so guard owners here.
+                    const owners = file.owners || {};
+                    const groups = Array.isArray(owners.groups) ? owners.groups : [];
+                    const drivers = Array.isArray(owners.drivers) ? owners.drivers : [];
+                    const vehicles = Array.isArray(owners.vehicles) ? owners.vehicles : [];
+                    const trailers = Array.isArray(owners.trailers) ? owners.trailers : [];
+
                     let hasExpired = false;
                     if (file.expiryDate) {
                         const currentDate = dayjs();
@@ -91,9 +105,18 @@ const DocumentMobile = ({ files, geotabData }) => {
                             }}
                         >
                             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="h5">
-                                    {file.fileName}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Tooltip title={file.hideFromDriver ? 'Hidden from driver' : 'Visible to driver'} arrow>
+                                        {file.hideFromDriver ? (
+                                            <VisibilityOffIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                        ) : (
+                                            <VisibilityIcon sx={{ fontSize: 18, color: '#1B7A3D' }} />
+                                        )}
+                                    </Tooltip>
+                                    <Typography variant="h5">
+                                        {file.fileName}
+                                    </Typography>
+                                </Box>
                             </AccordionSummary>
                             <AccordionDetails
                                 sx={{
@@ -102,43 +125,43 @@ const DocumentMobile = ({ files, geotabData }) => {
                                     gap: '1rem',
                                 }}
                             >
-                                {file.owners.groups.length > 0 && (
+                                {groups.length > 0 && (
                                     <Box>
                                         <Typography variant="h6">
                                             Groups
                                         </Typography>
                                         <Typography variant="body1">
-                                            {file.owners.groups.join(', ')}
+                                            {groups.join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
-                                {file.owners.drivers.length > 0 && (
+                                {drivers.length > 0 && (
                                     <Box>
                                         <Typography variant="h6">
                                             Drivers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(file.owners.drivers, 'drivers').join(', ')}
+                                            {formatData(drivers, 'drivers').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
-                                {file.owners.vehicles.length > 0 && (
+                                {vehicles.length > 0 && (
                                     <Box>
                                         <Typography variant="h6">
                                             Vehicles
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(file.owners.vehicles, 'vehicles').join(', ')}
+                                            {formatData(vehicles, 'vehicles').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
-                                {file.owners.trailers.length > 0 && (
+                                {trailers.length > 0 && (
                                     <Box>
                                         <Typography variant="h6">
                                             Trailers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(file.owners.trailers, 'trailers').join(', ')}
+                                            {formatData(trailers, 'trailers').join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
@@ -152,7 +175,7 @@ const DocumentMobile = ({ files, geotabData }) => {
                                     >
                                         <Typography>
                                             {dayjs(file.expiryDate).format(
-                                                'LL'
+                                                'MMMM D, YYYY'
                                             )}{' '}
                                         </Typography>
                                         {hasExpired ? (

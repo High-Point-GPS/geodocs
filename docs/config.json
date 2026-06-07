@@ -1,0 +1,18 @@
+{
+  "name": "GeoDocs",
+  "supportEmail": "israel.margulies@highpointgps.com",
+  "version": "0.0.1",
+  "items": [
+    {
+      "url": "./https://high-point-gps.github.io/geodocs/hpgpsFilemanager.html",
+      "path": "",
+      "menuName": {
+        "en": "GeoDocs"
+      },
+      "icon": "./https://high-point-gps.github.io/geodocs/images/icon.svg",
+      "customData": {
+        "testData": "testresult"
+      }
+    }
+  ]
+}
