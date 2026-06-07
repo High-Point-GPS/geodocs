@@ -581,7 +581,7 @@ const App = ({ api, database, session, server }) => {
 							GeoDocs
 						</Typography>
 						<Typography sx={{ fontSize: 13.5, color: '#6b7280' }}>
-							Store, organize, and manage important documents.
+							Store, organize, and manage documents by Driver, Vehicle or Trailer.
 						</Typography>
 					</Box>
 				</Box>
@@ -692,7 +692,12 @@ const App = ({ api, database, session, server }) => {
 						<Button onClick={() => setSettingsOpen(false)} disabled={settingsSaving}>
 							Cancel
 						</Button>
-						<Button variant="contained" onClick={handleSaveGlobalAlertSettings} disabled={settingsSaving}>
+						<Button
+							variant="contained"
+							onClick={handleSaveGlobalAlertSettings}
+							disabled={settingsSaving}
+							startIcon={settingsSaving ? <Spinner size={18} /> : null}
+						>
 							{settingsSaving ? 'Saving...' : 'Save'}
 						</Button>
 					</DialogActions>

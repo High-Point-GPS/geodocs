@@ -166,6 +166,10 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 					component="iframe"
 					src={blobUrl}
 					title={file.fileName}
+					// Sandbox without allow-scripts: a malicious document cannot run script in
+					// the add-in's origin. The browser's native PDF viewer still renders.
+					sandbox=""
+					referrerPolicy="no-referrer"
 					sx={{ width: '100%', height: '100%', border: 'none', borderRadius: '6px', bgcolor: '#fff' }}
 				/>
 			);

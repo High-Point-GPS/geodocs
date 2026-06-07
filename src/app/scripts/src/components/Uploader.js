@@ -395,8 +395,6 @@ const Uploader = ({
             hideFromDriver: !driverCanView,
         };
 
-        console.log('Uploading file with message body:', messageBody);
-
          const response = await fetch(
             'https://us-central1-geotabfiles.cloudfunctions.net/uploadDocFile',
             {

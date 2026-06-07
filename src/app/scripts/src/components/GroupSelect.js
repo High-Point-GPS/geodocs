@@ -22,7 +22,8 @@ const GroupSelect = ({ groupData, onUpdateData, uploadType }) => {
 			onChange={onGroupChange}
 			keepOpenOnSelect
 			keepTreeOnSearch
-			texts={{ placeholder: 'Choose groups…' }}
+			keepChildrenOnSearch
+			texts={{ placeholder: 'Search groups…', noMatches: 'No groups found' }}
 			className="tree-select-hpgps mdl-demo"
 			disabled={uploadType !== 'uploadGroup'}
 		/>

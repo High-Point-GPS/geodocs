@@ -6,6 +6,7 @@ import Filter from './Filter';
 import {
     Box,
     Button,
+    Chip,
     TableBody,
     Table,
     TableContainer,
@@ -19,13 +20,14 @@ import {
 } from '@mui/material';
 
 import SearchIcon from '@mui/icons-material/Search';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -59,7 +61,7 @@ const getHeaderLabel = (header) => {
 // Keyed by the column's display label (react-table mangles dotted accessor ids,
 // e.g. "owners.groups" -> "owners_groups", so id-based keys miss the owner columns).
 const columnIcons = {
-    File: InsertDriveFileOutlinedIcon,
+    File: ArticleOutlinedIcon,
     Groups: GroupsOutlinedIcon,
     Vehicles: DirectionsCarOutlinedIcon,
     Drivers: PersonOutlinedIcon,
@@ -137,6 +139,23 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
     const headers = table.getHeaderGroups()[0]?.headers || [];
     const rows = table.getRowModel().rows;
 
+    // Active column filters, resolved to their display label, for the toolbar summary chips.
+    const activeFilters = columnFilters
+        .filter((f) => f.value !== '' && f.value != null)
+        .map((f) => {
+            const col = table.getColumn(f.id);
+            const headerDef = col?.columnDef?.header;
+            const label = (typeof headerDef === 'function' ? headerDef() : headerDef) || f.id;
+            return { id: f.id, value: String(f.value), label };
+        });
+    const hasGlobalFilter = String(globalFilter ?? '').length > 0;
+    const hasActiveFilters = activeFilters.length > 0 || hasGlobalFilter;
+
+    const clearAllFilters = () => {
+        setColumnFilters([]);
+        setGlobalFilter('');
+    };
+
     // Report the filtered + sorted order (across all pages) so the preview's prev/next
     // can walk exactly what the user sees.
     const sortedRows = table.getSortedRowModel().rows;
@@ -182,22 +201,101 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                         borderBottom: '1px solid #eef2f7',
                     }}
                 >
-                    <Box sx={{ width: '100%', maxWidth: 360 }}>
-                        <DebouncedInput
-                            value={globalFilter ?? ''}
-                            onChange={(value) => setGlobalFilter(String(value))}
-                            placeholder="Search all columns..."
-                            fullWidth
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                                    </InputAdornment>
-                                ),
-                                sx: { borderRadius: '10px', bgcolor: '#fff' },
-                            }}
-                            sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e5e7eb' } }}
-                        />
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.25,
+                            flexWrap: 'wrap',
+                            flex: 1,
+                            minWidth: 0,
+                        }}
+                    >
+                        <Box sx={{ width: '100%', maxWidth: 360 }}>
+                            <DebouncedInput
+                                value={globalFilter ?? ''}
+                                onChange={(value) => setGlobalFilter(String(value))}
+                                placeholder="Search all columns..."
+                                fullWidth
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                        </InputAdornment>
+                                    ),
+                                    sx: { borderRadius: '10px', bgcolor: '#fff' },
+                                }}
+                                sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e5e7eb' } }}
+                            />
+                        </Box>
+
+                        {/* Active-filter summary: shows what's filtered now, each with an X to clear it */}
+                        {hasActiveFilters && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                                <FilterAltOutlinedIcon sx={{ fontSize: 17, color: '#94a3b8' }} />
+
+                                {hasGlobalFilter && (
+                                    <Chip
+                                        size="small"
+                                        icon={<SearchIcon sx={{ fontSize: 15 }} />}
+                                        label={`All columns: ${String(globalFilter)}`}
+                                        onDelete={() => setGlobalFilter('')}
+                                        sx={{
+                                            maxWidth: 240,
+                                            bgcolor: '#eef2ff',
+                                            color: '#26477C',
+                                            fontWeight: 600,
+                                            borderRadius: '8px',
+                                            '& .MuiChip-icon': { color: '#26477C' },
+                                            '& .MuiChip-deleteIcon': {
+                                                color: '#26477C',
+                                                '&:hover': { color: '#1e3a5f' },
+                                            },
+                                        }}
+                                    />
+                                )}
+
+                                {activeFilters.map((f) => {
+                                    const Icon = columnIcons[f.label];
+                                    return (
+                                        <Chip
+                                            key={f.id}
+                                            size="small"
+                                            icon={Icon ? <Icon sx={{ fontSize: 15 }} /> : undefined}
+                                            label={`${f.label}: ${f.value}`}
+                                            onDelete={() => table.getColumn(f.id)?.setFilterValue('')}
+                                            sx={{
+                                                maxWidth: 240,
+                                                bgcolor: '#eef2ff',
+                                                color: '#26477C',
+                                                fontWeight: 600,
+                                                borderRadius: '8px',
+                                                '& .MuiChip-icon': { color: '#26477C' },
+                                                '& .MuiChip-deleteIcon': {
+                                                    color: '#26477C',
+                                                    '&:hover': { color: '#1e3a5f' },
+                                                },
+                                            }}
+                                        />
+                                    );
+                                })}
+
+                                <Button
+                                    size="small"
+                                    onClick={clearAllFilters}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        color: '#64748b',
+                                        minWidth: 'auto',
+                                        px: 1,
+                                        '&:hover': { bgcolor: '#f1f5f9' },
+                                    }}
+                                >
+                                    Clear all
+                                </Button>
+                            </Box>
+                        )}
                     </Box>
 
                     <CSVLink data={generateCSV(displayFiles)} filename={'geodoc.csv'} style={{ textDecoration: 'none' }}>
