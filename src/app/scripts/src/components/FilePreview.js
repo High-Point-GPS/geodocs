@@ -13,6 +13,7 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import DownloadIcon from '@mui/icons-material/Download';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 
 import { getFileTypeMeta } from '../utils/formatter';
 import Spinner from './Spinner';
@@ -31,6 +32,13 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 	const meta = file ? getFileTypeMeta(file.fileName) : null;
 	const isImage = meta?.kind === 'image';
 	const isPdf = meta?.kind === 'pdf';
+
+	// Touchscreen browsers (phones/tablets) can't render PDFs inline in an iframe —
+	// show a download fallback there instead of a blank box.
+	const isHandheld =
+		typeof window !== 'undefined' && window.matchMedia
+			? window.matchMedia('(pointer: coarse)').matches
+			: false;
 
 	const hasPrev = open && index > 0;
 	const hasNext = open && index < files.length - 1;
@@ -103,8 +111,15 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 		if (!blobUrl || !file) return;
 		const link = document.createElement('a');
 		link.href = blobUrl;
-		link.download = file.fileName;
+		link.download = file.fileName || 'document';
+		// target/rel give a working fallback on mobile browsers that ignore the
+		// download attribute for blob: URLs (they open it instead of saving).
+		link.target = '_blank';
+		link.rel = 'noopener';
+		// Some browsers only fire the download when the anchor is in the DOM.
+		document.body.appendChild(link);
 		link.click();
+		document.body.removeChild(link);
 	};
 
 	const zoomOut = () => setZoom((z) => Math.max(0.25, Math.round((z - 0.25) * 100) / 100));
@@ -161,14 +176,23 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 			);
 		}
 		if (isPdf && blobUrl) {
+			// Mobile/touch browsers don't render PDFs inline in an iframe — offer download.
+			if (isHandheld) {
+				return (
+					<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, color: '#94a3b8', textAlign: 'center', px: 3 }}>
+						<PictureAsPdfOutlinedIcon sx={{ fontSize: 54, color: '#E11D48' }} />
+						<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>
+							PDF preview isn’t available on mobile
+						</Typography>
+						<Typography variant="caption">Tap Download below to open it in your device’s viewer.</Typography>
+					</Box>
+				);
+			}
 			return (
 				<Box
 					component="iframe"
 					src={blobUrl}
 					title={file.fileName}
-					// Sandbox without allow-scripts: a malicious document cannot run script in
-					// the add-in's origin. The browser's native PDF viewer still renders.
-					sandbox=""
 					referrerPolicy="no-referrer"
 					sx={{ width: '100%', height: '100%', border: 'none', borderRadius: '6px', bgcolor: '#fff' }}
 				/>
