@@ -4,11 +4,11 @@ import { Box, Typography } from '@mui/material';
 import Spinner from './Spinner';
 
 // react-pdf draws to <canvas>, so PDFs preview on mobile too (mobile browsers have no
-// inline PDF viewer for iframes). webpack 5 emits this worker as a bundled asset and
-// rewrites the new URL(...) below to "<publicPath>pdf.worker.min.mjs" (publicPath is "./"),
-// which resolves against the add-in's GitHub-Pages document origin — same-origin, no CDN.
+// inline PDF viewer for iframes). Use the CLASSIC .js worker (pdfjs 3): webpack emits it as
+// a bundled asset (<publicPath>pdf.worker.min.js) served same-origin from GitHub Pages with
+// the correct text/javascript MIME — a .mjs worker is rejected by GitHub Pages' MIME type.
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
+    'pdfjs-dist/build/pdf.worker.min.js',
     import.meta.url
 ).toString();
 

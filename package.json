@@ -96,6 +96,6 @@
 		"react-csv": "^2.2.2",
 		"react-dom": "^18.2.0",
 		"react-dropdown-tree-select": "^2.8.0",
-		"react-pdf": "^9.2.1"
+		"react-pdf": "^7.7.3"
 	}
 }
