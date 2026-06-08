@@ -12,6 +12,11 @@ module.exports = merge(common, {
 	module: {
 		rules: [
 			{
+				// Inline the pdf.js worker as source text (Blob at runtime) — no separate file.
+				test: /pdf\.worker\.min\.js$/,
+				type: 'asset/source',
+			},
+			{
 				test: /\.css$/,
 				use: [MiniCssExtractPlugin.loader, 'css-loader'],
 			},

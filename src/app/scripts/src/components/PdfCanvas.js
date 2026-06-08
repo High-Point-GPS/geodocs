@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+// Worker SOURCE is imported as a string (webpack asset/source rule) and turned into a
+// same-origin Blob URL below. The add-in runs inside the my.geotab.com page, so a worker
+// loaded by any URL resolves to the wrong origin and 404s ("Cannot load script"). A Blob
+// needs no external file and is same-origin, so the real worker initializes everywhere.
+import pdfWorkerSource from 'pdfjs-dist/build/pdf.worker.min.js';
 import { Box, Typography } from '@mui/material';
 import Spinner from './Spinner';
 
-// react-pdf draws to <canvas>, so PDFs preview on mobile too (mobile browsers have no
-// inline PDF viewer for iframes). Use the CLASSIC .js worker (pdfjs 3): webpack emits it as
-// a bundled asset (<publicPath>pdf.worker.min.js) served same-origin from GitHub Pages with
-// the correct text/javascript MIME — a .mjs worker is rejected by GitHub Pages' MIME type.
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.js',
-    import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+    new Blob([pdfWorkerSource], { type: 'text/javascript' })
+);
 
 const Fallback = ({ msg, detail }) => (
     <Box
