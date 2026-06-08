@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
 	Dialog,
 	Box,
@@ -16,9 +16,9 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 
 import { getFileTypeMeta } from '../utils/formatter';
 import Spinner from './Spinner';
-
-// Lazy-loaded so react-pdf/pdf.js (a few hundred KB) only downloads when a PDF is opened.
-const PdfCanvas = React.lazy(() => import('./PdfCanvas'));
+// Bundled (not code-split) so it loads with the main bundle that already loads reliably
+// in the embed — avoids a flaky lazy-chunk fetch on GitHub Pages.
+import PdfCanvas from './PdfCanvas';
 
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';
 
@@ -201,17 +201,9 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 			);
 			return (
 				<PdfErrorBoundary resetKey={blobUrl} fallback={pdfFallback}>
-					<Suspense
-						fallback={
-							<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-								<Spinner size={36} />
-							</Box>
-						}
-					>
-						{/* key={blobUrl} -> a fresh Document + fresh state per file (avoids a
-						    stale-page flash and an object-URL revocation race on navigation). */}
-						<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
-					</Suspense>
+					{/* key={blobUrl} -> a fresh Document + fresh state per file (avoids a
+					    stale-page flash and an object-URL revocation race on navigation). */}
+					<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
 				</PdfErrorBoundary>
 			);
 		}
