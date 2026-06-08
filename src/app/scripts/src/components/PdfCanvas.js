@@ -12,7 +12,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     import.meta.url
 ).toString();
 
-const Fallback = ({ msg }) => (
+const Fallback = ({ msg, detail }) => (
     <Box
         sx={{
             display: 'flex',
@@ -25,7 +25,12 @@ const Fallback = ({ msg }) => (
             py: 4,
         }}
     >
-        <Typography variant="body2">{msg}</Typography>
+        <Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>{msg}</Typography>
+        {detail ? (
+            <Typography variant="caption" sx={{ color: '#b91c1c', wordBreak: 'break-word', maxWidth: 380 }}>
+                {detail}
+            </Typography>
+        ) : null}
         <Typography variant="caption">Use the Download button below to open it.</Typography>
     </Box>
 );
@@ -35,6 +40,7 @@ const PdfCanvas = ({ blobUrl, zoom = 1 }) => {
     const [containerWidth, setContainerWidth] = useState(0);
     const [numPages, setNumPages] = useState(0);
     const [failed, setFailed] = useState(false);
+    const [errMsg, setErrMsg] = useState('');
 
     // Fit pages to the available width (responsive on mobile); zoom multiplies it.
     useEffect(() => {
@@ -66,18 +72,19 @@ const PdfCanvas = ({ blobUrl, zoom = 1 }) => {
             }}
         >
             {failed ? (
-                <Fallback msg="Couldn’t render this PDF." />
+                <Fallback msg="Couldn’t render this PDF" detail={errMsg} />
             ) : (
                 <Document
                     file={blobUrl}
                     onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-                    onLoadError={() => setFailed(true)}
+                    onLoadError={(e) => { setErrMsg((e && e.message) ? e.message : String(e)); setFailed(true); }}
+                    onSourceError={(e) => { setErrMsg((e && e.message) ? e.message : String(e)); setFailed(true); }}
                     loading={
                         <Box sx={{ py: 4 }}>
                             <Spinner size={36} />
                         </Box>
                     }
-                    error={<Fallback msg="Couldn’t render this PDF." />}
+                    error={<Fallback msg="Couldn’t render this PDF" detail={errMsg} />}
                 >
                     {containerWidth > 0 &&
                         Array.from({ length: numPages }, (_, i) => (

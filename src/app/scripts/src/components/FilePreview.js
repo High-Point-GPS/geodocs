@@ -27,18 +27,18 @@ const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDo
 class PdfErrorBoundary extends React.Component {
 	constructor(props) {
 		super(props);
-		this.state = { hasError: false };
+		this.state = { hasError: false, msg: '' };
 	}
-	static getDerivedStateFromError() {
-		return { hasError: true };
+	static getDerivedStateFromError(error) {
+		return { hasError: true, msg: (error && error.message) ? error.message : String(error) };
 	}
 	componentDidUpdate(prevProps) {
 		if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
-			this.setState({ hasError: false });
+			this.setState({ hasError: false, msg: '' });
 		}
 	}
 	render() {
-		return this.state.hasError ? this.props.fallback : this.props.children;
+		return this.state.hasError ? this.props.renderFallback(this.state.msg) : this.props.children;
 	}
 }
 
@@ -191,16 +191,21 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 			);
 		}
 		if (isPdf && blobUrl) {
-			// Canvas-rendered via pdf.js so it works on desktop AND mobile (lazy-loaded).
-			const pdfFallback = (
+			// Canvas-rendered via pdf.js so it works on desktop AND mobile.
+			const renderFallback = (msg) => (
 				<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, color: '#94a3b8', textAlign: 'center', px: 3 }}>
 					<InsertDriveFileOutlinedIcon sx={{ fontSize: 54 }} />
-					<Typography variant="body2">Couldn’t load the PDF viewer.</Typography>
+					<Typography variant="body2" sx={{ color: '#475569', fontWeight: 600 }}>Couldn’t load the PDF viewer</Typography>
+					{msg ? (
+						<Typography variant="caption" sx={{ color: '#b91c1c', wordBreak: 'break-word', maxWidth: 380 }}>
+							{msg}
+						</Typography>
+					) : null}
 					<Typography variant="caption">Use the download button below to open it.</Typography>
 				</Box>
 			);
 			return (
-				<PdfErrorBoundary resetKey={blobUrl} fallback={pdfFallback}>
+				<PdfErrorBoundary resetKey={blobUrl} renderFallback={renderFallback}>
 					{/* key={blobUrl} -> a fresh Document + fresh state per file (avoids a
 					    stale-page flash and an object-URL revocation race on navigation). */}
 					<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
