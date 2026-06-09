@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     Box,
     Typography,
@@ -10,6 +10,7 @@ import {
     Tooltip,
     Divider,
     Alert,
+    AlertTitle,
 } from '@mui/material';
 import { formatOptions, matchGeotabData, getFileTypeMeta } from '../utils/formatter';
 import dayjs from 'dayjs';
@@ -93,6 +94,10 @@ const Uploader = ({
     const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+    // The error/success alert sits at the foot of a tall form (below the action button),
+    // so on a small screen it lands below the dialog's visible area. We scroll it into
+    // view whenever a message appears so the user never has to hunt for it.
+    const alertRef = useRef(null);
 
     const handleUpdateUploadType = (e) => {
         setUploadType(e.target.value);
@@ -230,7 +235,7 @@ const Uploader = ({
 
         if (!isThereUploadData()) {
             setError(
-                'Must select either a Vehicle, Driver, Trailer, or a Group to associate file to.'
+                'No association selected. Every file must be linked to at least one Vehicle, Driver, Trailer, or Group so it can be found later. Open the "Associations" section above and choose at least one before saving.'
             );
             return;
         }
@@ -350,7 +355,7 @@ const Uploader = ({
 
         if (!isThereUploadData()) {
             setError(
-                'Must select either a Vehicle, Driver, Trailer, or a Group to associate file to.'
+                'No association selected. Every file must be linked to at least one Vehicle, Driver, Trailer, or Group so it can be found later. Open the "Associations" section above and choose at least one before uploading.'
             );
             return;
         }
@@ -558,6 +563,13 @@ const Uploader = ({
         setImagePreviewUrl(null);
         return undefined;
     }, [uploadFiles]);
+
+    // Bring the result/validation message into view as soon as it is set.
+    useEffect(() => {
+        if ((error || success) && alertRef.current) {
+            alertRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [error, success]);
 
     const sectionCardSx = {
         width: '100%',
@@ -923,9 +935,19 @@ const Uploader = ({
                     )}
                 </Box>
 
-                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', px: 2 }}>
+                <Box ref={alertRef} sx={{ width: '100%', display: 'flex', justifyContent: 'center', px: 2, scrollMarginTop: '16px' }}>
                     {error !== '' && (
-                        <Alert severity="error" sx={{ borderRadius: '10px', width: '100%', maxWidth: 520 }}>
+                        <Alert
+                            severity="error"
+                            sx={{
+                                borderRadius: '10px',
+                                width: '100%',
+                                maxWidth: 520,
+                                boxShadow: '0 4px 14px rgba(220,38,38,0.18)',
+                                '& .MuiAlert-message': { fontSize: 14, lineHeight: 1.45 },
+                            }}
+                        >
+                            <AlertTitle sx={{ fontWeight: 700, mb: 0.25 }}>Can&apos;t continue yet</AlertTitle>
                             {error}
                         </Alert>
                     )}
