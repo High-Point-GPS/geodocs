@@ -82,6 +82,7 @@ const Uploader = ({
     });
 
     const [error, setError] = useState('');
+    const [errorTitle, setErrorTitle] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(false);
@@ -225,6 +226,7 @@ const Uploader = ({
 
     const handeEditFile = async () => {
         setError('');
+        setErrorTitle('');
 
         if (uploadFiles.length <= 0) {
             setError(
@@ -234,8 +236,9 @@ const Uploader = ({
         }
 
         if (!isThereUploadData()) {
+            setErrorTitle('Add an association');
             setError(
-                'No association selected. Every file must be linked to at least one Vehicle, Driver, Trailer, or Group so it can be found later. Open the "Associations" section above and choose at least one before saving.'
+                'Link this file to at least one Vehicle, Driver, Trailer, or Group before saving.'
             );
             return;
         }
@@ -345,6 +348,7 @@ const Uploader = ({
 
     const handleUpload = async () => {
         setError('');
+        setErrorTitle('');
 
         if (uploadFiles.length <= 0) {
             setError(
@@ -354,8 +358,9 @@ const Uploader = ({
         }
 
         if (!isThereUploadData()) {
+            setErrorTitle('Add an association');
             setError(
-                'No association selected. Every file must be linked to at least one Vehicle, Driver, Trailer, or Group so it can be found later. Open the "Associations" section above and choose at least one before uploading.'
+                'Link this file to at least one Vehicle, Driver, Trailer, or Group before uploading.'
             );
             return;
         }
@@ -947,7 +952,7 @@ const Uploader = ({
                                 '& .MuiAlert-message': { fontSize: 14, lineHeight: 1.45 },
                             }}
                         >
-                            <AlertTitle sx={{ fontWeight: 700, mb: 0.25 }}>Can&apos;t continue yet</AlertTitle>
+                            <AlertTitle sx={{ fontWeight: 700, mb: 0.25 }}>{errorTitle || 'Can\'t continue yet'}</AlertTitle>
                             {error}
                         </Alert>
                     )}
