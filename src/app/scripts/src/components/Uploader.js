@@ -28,7 +28,28 @@ import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
 import Spinner from './Spinner';
 
-
+// File types GeoDocs accepts (matches the backend validator). Setting these as the file
+// input's `accept` makes mobile pickers expose the Files/document picker (so PDFs and docs
+// are selectable), instead of defaulting to camera/gallery only.
+const ACCEPTED_FILE_ACCEPT = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'text/plain',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'image/heic',
+    'image/heif',
+    'image/webp',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.txt',
+    '.ppt', '.pptx', '.heic', '.heif', '.webp',
+].join(',');
 
 const Uploader = ({
     database,
@@ -576,6 +597,7 @@ const Uploader = ({
                 <FileDropzone
                     files={uploadFiles}
                     onChange={setUploadFiles}
+                    accept={ACCEPTED_FILE_ACCEPT}
                     multiple
                 />
                     

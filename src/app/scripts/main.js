@@ -122,7 +122,9 @@ geotab.addin.hpgpsFilemanager = function () {
 
             freshApi.getSession(async (session, server) => {
                     Object.assign(sessionInfo, {
-                    database: session.database,
+                    // Database is always treated lowercase so document lookups are
+                    // case-insensitive (Geotab may return the name in any case).
+                    database: (session.database || '').toLowerCase(),
                     userName: session.userName,
                     sessionId: session.sessionId,
                     server: server
@@ -172,7 +174,7 @@ geotab.addin.hpgpsFilemanager = function () {
 
                 if (container && eulaAcceptanceStatus) {
                     const root = createRoot(container);
-                    root.render(<App api={freshApi} database={session.database} session={session} server={server} />);
+                    root.render(<App api={freshApi} database={(session.database || '').toLowerCase()} session={session} server={server} />);
                 }
             });
         },

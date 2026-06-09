@@ -3,7 +3,7 @@
 export const getFileTypeMeta = (fileName = '') => {
 	const ext = (String(fileName).split('.').pop() || '').toLowerCase();
 
-	const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic'];
+	const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif'];
 
 	if (imageExts.includes(ext)) {
 		return { ext, label: ext.toUpperCase(), kind: 'image', color: '#6D4AFF', bg: '#EDEAFF' };
@@ -11,7 +11,7 @@ export const getFileTypeMeta = (fileName = '') => {
 	if (ext === 'pdf') {
 		return { ext, label: 'PDF', kind: 'pdf', color: '#E11D48', bg: '#FFE4E6' };
 	}
-	if (['doc', 'docx'].includes(ext)) {
+	if (['doc', 'docx', 'ppt', 'pptx'].includes(ext)) {
 		return { ext, label: ext.toUpperCase(), kind: 'doc', color: '#2563EB', bg: '#DBEAFE' };
 	}
 	if (['xls', 'xlsx', 'csv'].includes(ext)) {
