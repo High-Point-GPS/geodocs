@@ -109,6 +109,15 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
     const [vehicle, setVehicle] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
 
+    // DateCalendar re-centers the view whenever its `value` REFERENCE changes (its
+    // recenter effect depends on the raw object). A fresh dayjs built inline on every
+    // render would snap the view back to the selected day's month on each re-render —
+    // freezing the month arrows once any day is selected. Keep the instance stable.
+    const selectedDayValue = useMemo(
+        () => (selectedDate ? dayjs(selectedDate) : null),
+        [selectedDate]
+    );
+
     // Fresh view each time the popup opens; the vehicle choice is kept on purpose.
     useEffect(() => {
         if (open) {
@@ -317,7 +326,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                         >
                             <LocalizationProvider dateAdapter={AdapterDayjs}>
                                 <DateCalendar
-                                    value={selectedDate ? dayjs(selectedDate) : null}
+                                    value={selectedDayValue}
                                     onChange={(d) => setSelectedDate(d ? d.format('YYYY-MM-DD') : null)}
                                     onMonthChange={(m) => setMonth(m.startOf('month'))}
                                     onYearChange={(y) => setMonth(y.startOf('month'))}
