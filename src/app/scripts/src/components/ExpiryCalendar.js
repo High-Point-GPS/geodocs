@@ -20,11 +20,21 @@ import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 
 import CloseIcon from '@mui/icons-material/Close';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 
 import FileTypeGlyph from './FileTypeGlyph';
+import FlatbedTrailerIcon from './FlatbedTrailerIcon';
+
+// Same icons the document table uses for these owner kinds.
+const KIND_META = {
+    vehicles: { group: 'Vehicles', Icon: DirectionsCarOutlinedIcon },
+    drivers: { group: 'Drivers', Icon: PersonOutlinedIcon },
+    trailers: { group: 'Trailers', Icon: FlatbedTrailerIcon },
+};
 
 // Same status tones used by the table's Expired/Active pills.
 const TONES = {
@@ -106,7 +116,8 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
     const fullScreen = !!mobile;
 
     const [month, setMonth] = useState(() => dayjs().startOf('month'));
-    const [vehicle, setVehicle] = useState(null);
+    // One filter across vehicles, drivers, and trailers: { label, value, kind }.
+    const [filter, setFilter] = useState(null);
     const [selectedDate, setSelectedDate] = useState(null);
 
     // DateCalendar re-centers the view whenever its `value` REFERENCE changes (its
@@ -118,7 +129,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
         [selectedDate]
     );
 
-    // Fresh view each time the popup opens; the vehicle choice is kept on purpose.
+    // Fresh view each time the popup opens; the filter choice is kept on purpose.
     useEffect(() => {
         if (open) {
             setMonth(dayjs().startOf('month'));
@@ -126,27 +137,39 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
         }
     }, [open]);
 
-    const vehicleOptions = useMemo(() => {
-        const options = Array.isArray(geotabData?.vehicles) ? [...geotabData.vehicles] : [];
-        return options.sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    // All filterable entities in one list, grouped Vehicles -> Drivers -> Trailers,
+    // each sorted by name within its group.
+    const filterOptions = useMemo(() => {
+        const byLabel = (a, b) => String(a.label).localeCompare(String(b.label));
+        return ['vehicles', 'drivers', 'trailers'].flatMap((kind) => {
+            const list = Array.isArray(geotabData?.[kind]) ? [...geotabData[kind]] : [];
+            return list.sort(byLabel).map((o) => ({ ...o, kind }));
+        });
     }, [geotabData]);
 
-    const vehicleLabel = (id) => {
-        const match = vehicleOptions.find((v) => v.value === id);
-        return match ? match.label : id;
+    // Live Geotab name wins; otherwise the file's saved display name (geotabData is a
+    // filtered subset, so unlinked/deactivated assets miss); the raw entry is last
+    // (it IS the label on legacy documents that stored names instead of ids).
+    const ownerLabel = (kind, id, savedName) => {
+        const list = Array.isArray(geotabData?.[kind]) ? geotabData[kind] : [];
+        const match = list.find((o) => o.value === id);
+        if (match) return match.label;
+        if (savedName != null && savedName !== '') return savedName;
+        return id;
     };
 
     // Only documents with a parseable expiry date can be placed on the calendar,
-    // narrowed to the chosen vehicle when one is selected. Owners hold Geotab ids,
-    // but legacy documents may still hold the display label — match either.
+    // narrowed to the chosen vehicle/driver/trailer when one is selected. Owners
+    // hold Geotab ids, but legacy documents may still hold the display label —
+    // match either.
     const datedFiles = useMemo(() => {
         const withDates = files.filter((f) => f.expiryDate && dayjs(f.expiryDate).isValid());
-        if (!vehicle) return withDates;
+        if (!filter) return withDates;
         return withDates.filter((f) => {
-            const owners = Array.isArray(f.owners?.vehicles) ? f.owners.vehicles : [];
-            return owners.some((v) => v === vehicle.value || v === vehicle.label);
+            const owners = Array.isArray(f.owners?.[filter.kind]) ? f.owners[filter.kind] : [];
+            return owners.some((v) => v === filter.value || v === filter.label);
         });
-    }, [files, vehicle]);
+    }, [files, filter]);
 
     const filesByDay = useMemo(() => {
         const map = new Map();
@@ -217,7 +240,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
             </DialogTitle>
 
             <DialogContent sx={{ p: { xs: 1.5, md: 2.5 } }}>
-                {/* Controls: month summary + vehicle filter */}
+                {/* Controls: month summary + owner filter (vehicle / driver / trailer) */}
                 <Box
                     sx={{
                         display: 'flex',
@@ -237,38 +260,44 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                             {monthCount === 0
                                 ? 'No documents expire this month'
                                 : `${monthCount} document${monthCount === 1 ? '' : 's'} expir${monthCount === 1 ? 'es' : 'e'} this month`}
-                            {vehicle ? ` for ${vehicle.label}` : ''}
+                            {filter ? ` for ${filter.label}` : ''}
                         </Typography>
                     </Box>
 
                     <Autocomplete
-                        options={vehicleOptions}
-                        value={vehicle}
+                        options={filterOptions}
+                        value={filter}
                         onChange={(e, newValue) => {
-                            setVehicle(newValue);
+                            setFilter(newValue);
                             setSelectedDate(null);
                         }}
+                        groupBy={(option) => KIND_META[option.kind].group}
                         getOptionLabel={(option) => option.label || ''}
-                        isOptionEqualToValue={(option, val) => val != null && option.value === val.value}
-                        disabled={vehicleOptions.length === 0}
+                        isOptionEqualToValue={(option, val) =>
+                            val != null && option.kind === val.kind && option.value === val.value
+                        }
+                        disabled={filterOptions.length === 0}
                         size="small"
-                        sx={{ width: { xs: '100%', sm: 280 } }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Vehicle"
-                                placeholder="All vehicles"
-                                InputProps={{
-                                    ...params.InputProps,
-                                    startAdornment: (
-                                        <>
-                                            <DirectionsCarOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8', ml: 0.5 }} />
-                                            {params.InputProps.startAdornment}
-                                        </>
-                                    ),
-                                }}
-                            />
-                        )}
+                        sx={{ width: { xs: '100%', sm: 300 } }}
+                        renderInput={(params) => {
+                            const FilterIcon = filter ? KIND_META[filter.kind].Icon : FilterAltOutlinedIcon;
+                            return (
+                                <TextField
+                                    {...params}
+                                    label="Vehicle, Driver or Trailer"
+                                    placeholder="All documents"
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        startAdornment: (
+                                            <>
+                                                <FilterIcon sx={{ fontSize: 18, color: '#94a3b8', ml: 0.5 }} />
+                                                {params.InputProps.startAdornment}
+                                            </>
+                                        ),
+                                    }}
+                                />
+                            );
+                        }}
                     />
                 </Box>
 
@@ -286,16 +315,16 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                     >
                         <EventOutlinedIcon sx={{ fontSize: 36, color: '#cbd5e1' }} />
                         <Typography sx={{ fontWeight: 600, color: '#64748b', mt: 1 }}>
-                            {vehicle
-                                ? `No documents with expiry dates for ${vehicle.label}`
+                            {filter
+                                ? `No documents with expiry dates for ${filter.label}`
                                 : 'No documents with expiry dates'}
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 0.5 }}>
-                            {vehicle
-                                ? 'Clear the vehicle filter or pick another vehicle.'
+                            {filter
+                                ? 'Clear the filter or pick another vehicle, driver, or trailer.'
                                 : 'Upload files or add expiry dates to existing documents to see them here.'}
                         </Typography>
-                        {!vehicle && onUploadClick && (
+                        {!filter && onUploadClick && (
                             <Button
                                 variant="contained"
                                 size="small"
@@ -382,14 +411,22 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                                     </Box>
                                     {selectedFiles.length === 0 ? (
                                         <Typography sx={{ px: 2, py: 2, color: '#94a3b8', fontSize: 13.5 }}>
-                                            No documents expire on this day{vehicle ? ` for ${vehicle.label}` : ''}.
+                                            No documents expire on this day{filter ? ` for ${filter.label}` : ''}.
                                         </Typography>
                                     ) : (
                                         selectedFiles.map((file) => {
                                             const expired = dayjs(file.expiryDate) < dayjs();
-                                            const ownerVehicles = Array.isArray(file.owners?.vehicles)
-                                                ? file.owners.vehicles.map(vehicleLabel)
-                                                : [];
+                                            const ownerLines = ['vehicles', 'drivers', 'trailers']
+                                                .map((kind) => ({
+                                                    kind,
+                                                    // ownerNames is positionally aligned with owners (App.js contract)
+                                                    names: Array.isArray(file.owners?.[kind])
+                                                        ? file.owners[kind].map((id, i) =>
+                                                              ownerLabel(kind, id, file.ownerNames?.[kind]?.[i])
+                                                          )
+                                                        : [],
+                                                }))
+                                                .filter((line) => line.names.length > 0);
                                             return (
                                                 <Box
                                                     key={file.id}
@@ -419,22 +456,25 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                                                         >
                                                             {file.fileName}
                                                         </Typography>
-                                                        {ownerVehicles.length > 0 && (
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                                                                <DirectionsCarOutlinedIcon sx={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }} />
-                                                                <Typography
-                                                                    sx={{
-                                                                        fontSize: 12.5,
-                                                                        color: '#64748b',
-                                                                        whiteSpace: 'nowrap',
-                                                                        overflow: 'hidden',
-                                                                        textOverflow: 'ellipsis',
-                                                                    }}
-                                                                >
-                                                                    {ownerVehicles.join(', ')}
-                                                                </Typography>
-                                                            </Box>
-                                                        )}
+                                                        {ownerLines.map(({ kind, names }) => {
+                                                            const KindIcon = KIND_META[kind].Icon;
+                                                            return (
+                                                                <Box key={kind} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                                                                    <KindIcon sx={{ fontSize: 14, color: '#94a3b8', flexShrink: 0 }} />
+                                                                    <Typography
+                                                                        sx={{
+                                                                            fontSize: 12.5,
+                                                                            color: '#64748b',
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                        }}
+                                                                    >
+                                                                        {names.join(', ')}
+                                                                    </Typography>
+                                                                </Box>
+                                                            );
+                                                        })}
                                                     </Box>
                                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25, flexShrink: 0 }}>
                                                         <StatusPill expired={expired} />
