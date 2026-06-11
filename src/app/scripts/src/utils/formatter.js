@@ -20,6 +20,19 @@ export const getFileTypeMeta = (fileName = '') => {
 	return { ext: ext || 'file', label: (ext || 'FILE').toUpperCase(), kind: 'other', color: '#475569', bg: '#E2E8F0' };
 };
 
+// Geotab's root "Company Group" contains every other group, so when it appears in a
+// list of group names the rest are redundant for display. Storage must keep the full
+// expanded list (the driver app matches visibility by exact tag inclusion) — these
+// helpers are for display/selection only.
+export const isCompanyGroupLabel = (label) =>
+	String(label).trim().toLowerCase() === 'company group';
+
+export const collapseCompanyGroup = (labels) => {
+	if (!Array.isArray(labels)) return labels || [];
+	const company = labels.find((l) => isCompanyGroupLabel(l));
+	return company ? [company] : labels;
+};
+
 export const formatOptions = (data) => {
 	return data.map((d) => {
 		return {

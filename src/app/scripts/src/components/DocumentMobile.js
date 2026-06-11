@@ -14,6 +14,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { generateCSV } from '../utils/csv-generator';
+import { collapseCompanyGroup } from '../utils/formatter';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
@@ -82,7 +83,7 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
                 {filterFiles.map((file) => {
                     // Mobile consumes the raw (un-normalized) file list, so guard owners here.
                     const owners = file.owners || {};
-                    const groups = Array.isArray(owners.groups) ? owners.groups : [];
+                    const groups = collapseCompanyGroup(Array.isArray(owners.groups) ? owners.groups : []);
                     const drivers = Array.isArray(owners.drivers) ? owners.drivers : [];
                     const vehicles = Array.isArray(owners.vehicles) ? owners.vehicles : [];
                     const trailers = Array.isArray(owners.trailers) ? owners.trailers : [];

@@ -10,7 +10,13 @@ import {
     Alert,
     AlertTitle,
 } from '@mui/material';
-import { formatOptions, matchGeotabData, getFileTypeMeta } from '../utils/formatter';
+import {
+    formatOptions,
+    matchGeotabData,
+    getFileTypeMeta,
+    collapseCompanyGroup,
+    isCompanyGroupLabel,
+} from '../utils/formatter';
 import dayjs from 'dayjs';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -188,7 +194,20 @@ const Uploader = ({
     };
 
     const handleUpdateGroup = (newGroupData) => {
-        setUploadData({ ...uploadData, groups: [...newGroupData] });
+        let groups = [...newGroupData];
+
+        // "Company Group" is the root: it includes every other group, so any other
+        // selection is redundant. Collapse to just it and uncheck the rest in the tree.
+        const company = groups.find((g) => isCompanyGroupLabel(g.label));
+        if (company && groups.length > 1) {
+            groups = [company];
+            const newTreeData = [...geotabData.groups];
+            newTreeData.forEach((g) => setCheckedFalse(g));
+            newTreeData.forEach((g) => setCheckedTrue(g, [{ label: company.label }]));
+            setGeotabData({ ...geotabData, groups: newTreeData });
+        }
+
+        setUploadData({ ...uploadData, groups });
         if (clearGroup) {
             setClearGroup(false);
         }
@@ -600,7 +619,10 @@ const Uploader = ({
       } else {
         setUploadType('uploadGroup');
         const newGroupData = [...geotabData.groups];
-        newGroupData.forEach(g => setCheckedTrue(g, [...formatOptions(dataGroups)]));
+        // Display-only collapse: if Company Group is among the stored groups, check just
+        // it in the picker. uploadData below keeps the full stored list, so saving
+        // without touching the tree preserves the file's tags exactly.
+        newGroupData.forEach(g => setCheckedTrue(g, [...formatOptions(collapseCompanyGroup(dataGroups))]));
         setGeotabData({ ...geotabData, groups: newGroupData });
       }
 

@@ -47,6 +47,7 @@ import {
 } from '@tanstack/react-table';
 
 import { columns, stringMatchFilter, globalStringFilter } from '../utils/tabel-helper';
+import { collapseCompanyGroup } from '../utils/formatter';
 
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
@@ -106,7 +107,7 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                     drivers: Array.isArray(owners.drivers) ? formatData(owners.drivers, 'drivers') : owners.drivers || [],
                     vehicles: Array.isArray(owners.vehicles) ? formatData(owners.vehicles, 'vehicles') : owners.vehicles || [],
                     trailers: Array.isArray(owners.trailers) ? formatData(owners.trailers, 'trailers') : owners.trailers || [],
-                    groups: Array.isArray(owners.groups) ? owners.groups : owners.groups || [],
+                    groups: collapseCompanyGroup(Array.isArray(owners.groups) ? owners.groups : []),
                 },
             };
         });
