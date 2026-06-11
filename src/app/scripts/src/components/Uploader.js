@@ -961,6 +961,7 @@ const Uploader = ({
                             <DatePicker
                                 label="File Expire Date"
                                 value={expiryDate}
+                                format="DD/MMM/YYYY"
                                 onChange={(newValue) => {
                                     setExpiryDate(newValue);
                                 }}
@@ -991,6 +992,9 @@ const Uploader = ({
                                 label="Expiration alert emails"
                                 placeholder={splitEmails(alertEmail).length ? '' : 'Add email…'}
                                 rejectEmails={splitEmails(globalAlertEmail)}
+                                rejectMessage={(emails) =>
+                                    `${emails.join(', ')} is the global default — it already gets every alert, so it isn't added per file.`
+                                }
                                 helperText={
                                     globalAlertEmailDisplay
                                         ? splitEmails(alertEmail).length
