@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
     Box,
     Dialog,
@@ -13,21 +13,30 @@ import {
     Badge,
     Checkbox,
     FormControlLabel,
+    InputAdornment,
 } from '@mui/material';
 import dayjs from 'dayjs';
 
 import Uploader from './components/Uploader';
 import DocumentTable from './components/DocumentTabel';
+import ExpiryCalendar from './components/ExpiryCalendar';
+import EmailChipsInput, { splitEmails } from './components/EmailChipsInput';
 import FileActions from './components/FileActions';
 import FilePreview from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
 import Spinner from './components/Spinner';
 
-import { formatGeotabData, getFileTypeMeta } from './utils/formatter';
+import { formatGeotabData, getFileTypeMeta, matchGeotabData } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
 import MarkEmailUnreadOutlinedIcon from '@mui/icons-material/MarkEmailUnreadOutlined';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import '../../styles/app-styles.css';
 
@@ -95,7 +104,7 @@ const theme = createTheme({
 });
 
 
-const App = ({ api, database, session, server }) => {
+const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 	const [files, setFiles] = useState([]);
 	const [tableFiles, setTableFiles] = useState([]);
 	const [editFile, setEditFile] = useState(null);
@@ -114,10 +123,18 @@ const App = ({ api, database, session, server }) => {
         trailers: [],
         groups: [],
     });
+    // True once the Geotab vehicle/driver/trailer/group lists have actually loaded, so
+    // the owner-name sync doesn't run against the empty initial map (which would store IDs).
+    const [geotabDataLoaded, setGeotabDataLoaded] = useState(false);
+    // Guards against re-entering the name sync while a request is in flight.
+    const syncingNamesRef = useRef(false);
+    // A "...,fileId:<id>" deep link (used by alert emails) is handled once per load.
+    const deepLinkHandledRef = useRef(false);
 
 	const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
     const [uploaderOpen, setUploaderOpen] = useState(false);
+	const [calendarOpen, setCalendarOpen] = useState(false);
 	// Preview is tracked by file id (not a raw-array index) so prev/next can follow the
 	// order the user actually sees; the table/mobile view reports its displayed order here.
 	const [previewFileId, setPreviewFileId] = useState(null);
@@ -408,6 +425,19 @@ const App = ({ api, database, session, server }) => {
 		fetchFiles();
 	}, []);
 
+	// Alert emails link to #addin-geodocs-hpgpsfilemanager,fileId:<id> — once the
+	// file list is in, open that file's edit dialog directly. MyGeotab passes the
+	// param via add-in state (deepLinkFileId); the hash check covers the embed page.
+	useEffect(() => {
+		if (deepLinkHandledRef.current || files.length === 0) return;
+		deepLinkHandledRef.current = true;
+		const hashMatch = window.location.hash.match(/[#,]fileId:([^,&/]+)/);
+		const fileId = deepLinkFileId || (hashMatch ? decodeURIComponent(hashMatch[1]) : null);
+		if (!fileId) return;
+		const target = files.find((f) => String(f.id) === fileId);
+		if (target) handeEditFile(target);
+	}, [files, deepLinkFileId]);
+
 	// Load devices/users/trailers/groups for uploader when API is available
 	useEffect(() => {
 		
@@ -477,6 +507,7 @@ const App = ({ api, database, session, server }) => {
 
 							const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
 							setGeotabData(formatedData);
+							setGeotabDataLoaded(true);
 						},
 						function (error) {
 							console.error('Error: Could not find AddIn Device Links.', error);
@@ -485,6 +516,7 @@ const App = ({ api, database, session, server }) => {
 				} else {
 					const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
 					setGeotabData(formatedData);
+					setGeotabDataLoaded(true);
 				}
 			},
 			function (error) {
@@ -514,6 +546,98 @@ const App = ({ api, database, session, server }) => {
 
 		setTableFiles([...filesWithActions]);
 	}, [files]);
+
+	// Keep each file's saved owner display-names (ownerNames) in sync with Geotab's current
+	// names, so the daily expiry email — which runs with no Geotab session — can show them.
+	// Runs in the background whenever the app is open: resolves owner IDs -> names via the
+	// live Geotab map, and posts only the files whose names changed or are missing. This also
+	// backfills files uploaded before the feature existed, and self-heals after a rename.
+	useEffect(() => {
+		if (!geotabDataLoaded) return;
+		if (!files.length) return;
+		if (syncingNamesRef.current) return;
+
+		// Resolve a list of owner IDs to names. geotabData is a FILTERED subset (only
+		// add-in-linked / active / current assets), so an ID assigned to a now-deactivated
+		// or unlinked asset won't be found. In that case we keep the last-known-good name
+		// that was previously stored (never DOWNGRADE a real name back to a raw Geotab ID),
+		// falling back to the ID only when we have nothing better. Arrays stay positionally
+		// aligned with `owners`. Groups are already stored by name.
+		const resolveList = (ids, key, prior) =>
+			(ids || []).map((id, i) => {
+				const hit = geotabData[key].find((d) => d.value === id);
+				if (hit) return hit.label;                     // current Geotab name wins
+				const prev = prior && prior[i];
+				if (prev != null && prev !== id) return prev;  // keep last-known-good name
+				return id;                                     // nothing better than the ID
+			});
+
+		const resolveNames = (file) => {
+			const o = file.owners || {};
+			const prior = file.ownerNames || {};
+			return {
+				vehicles: resolveList(o.vehicles, 'vehicles', prior.vehicles),
+				drivers: resolveList(o.drivers, 'drivers', prior.drivers),
+				trailers: resolveList(o.trailers, 'trailers', prior.trailers),
+				groups: [...(o.groups || [])],
+			};
+		};
+
+		// Order-independent at the object level. Firestore returns map keys alphabetically
+		// sorted, so a whole-object JSON.stringify of the fetched ownerNames would never match
+		// our insertion-ordered object — and we'd re-POST every file on every load. Compare
+		// each named array element-wise instead (element order within an array is stable).
+		const arr = (x) => (Array.isArray(x) ? x : []);
+		const eqArr = (x, y) => x.length === y.length && x.every((v, i) => v === y[i]);
+		const sameNames = (a, b) => {
+			a = a || {};
+			b = b || {};
+			return (
+				eqArr(arr(a.vehicles), arr(b.vehicles)) &&
+				eqArr(arr(a.drivers), arr(b.drivers)) &&
+				eqArr(arr(a.trailers), arr(b.trailers)) &&
+				eqArr(arr(a.groups), arr(b.groups))
+			);
+		};
+
+		const updates = [];
+		for (const f of files) {
+			if (!f.id || f.id === 'config') continue;
+			const computed = resolveNames(f);
+			if (!sameNames(computed, f.ownerNames)) {
+				updates.push({ fileId: f.id, ownerNames: computed });
+			}
+		}
+
+		if (!updates.length) return;
+
+		syncingNamesRef.current = true;
+		// Optimistically attach the computed names locally so this effect doesn't resend them
+		// on the re-render it triggers (the next pass finds them unchanged and stops).
+		setFiles((prev) =>
+			prev.map((f) => {
+				const u = updates.find((x) => x.fileId === f.id);
+				return u ? { ...f, ownerNames: u.ownerNames } : f;
+			})
+		);
+
+		const sessionInfo = {
+			database,
+			sessionId: session.sessionId,
+			userName: session.userName,
+			server,
+		};
+
+		fetch('https://us-central1-geotabfiles.cloudfunctions.net/syncOwnerNames', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ session: sessionInfo, database, updates }),
+		})
+			.catch((err) => console.error('syncOwnerNames failed:', err))
+			.finally(() => {
+				syncingNamesRef.current = false;
+			});
+	}, [files, geotabData, geotabDataLoaded]);
 
 	useEffect(() => {
 		function updateSize() {
@@ -602,6 +726,25 @@ const App = ({ api, database, session, server }) => {
 					>
 						Upload Files
 					</Button>
+					<Tooltip title="View expiry dates on a calendar" arrow>
+						<Button
+							variant="outlined"
+							onClick={() => setCalendarOpen(true)}
+							startIcon={<EventBusyOutlinedIcon />}
+							sx={{
+								textTransform: 'none',
+								fontWeight: 600,
+								borderRadius: '10px',
+								borderColor: '#e5e7eb',
+								color: '#334155',
+								bgcolor: '#fff',
+								px: 2,
+								'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+							}}
+						>
+							Calendar
+						</Button>
+					</Tooltip>
 					<Tooltip title="Configure expiry email alerts" arrow>
 						<Button
 							variant="outlined"
@@ -637,68 +780,174 @@ const App = ({ api, database, session, server }) => {
 				</Box>
 			</Box>
 
-				<Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-					<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eef2f7' }}>
-						Global Alert Settings
+				<Dialog
+					open={settingsOpen}
+					onClose={() => setSettingsOpen(false)}
+					maxWidth="sm"
+					fullWidth
+					PaperProps={{ sx: { borderRadius: '16px' } }}
+					aria-labelledby="global-alert-settings-title"
+				>
+					{/* component="div" so the heading/subtitle markup below stays valid HTML */}
+					<DialogTitle component="div" sx={{ m: 0, p: 2.5, pb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+						<Box
+							sx={{
+								width: 56,
+								height: 56,
+								borderRadius: '50%',
+								bgcolor: '#26477C',
+								display: 'flex',
+								alignItems: 'center',
+								justifyContent: 'center',
+								flexShrink: 0,
+							}}
+						>
+							<NotificationsNoneOutlinedIcon sx={{ fontSize: 30, color: '#FF7404' }} />
+						</Box>
+						<Box sx={{ flex: 1, minWidth: 0 }}>
+							<Typography
+								component="h2"
+								id="global-alert-settings-title"
+								sx={{ fontWeight: 700, fontSize: 20, color: '#26477C', lineHeight: 1.3, m: 0 }}
+							>
+								Global Alert Settings
+							</Typography>
+							<Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
+								Configure the default emails to receive alerts on document expiry dates and how many days before expiry an alert should be sent.
+							</Typography>
+						</Box>
 						<IconButton
 							aria-label="close settings"
 							onClick={() => setSettingsOpen(false)}
-							sx={{ color: (theme) => theme.palette.grey[500] }}
+							sx={{ color: (theme) => theme.palette.grey[500], mt: -0.5, mr: -0.5 }}
 						>
 							<CloseIcon />
 						</IconButton>
 					</DialogTitle>
-					<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-						<Typography variant="body2" color="text.secondary">
-							Configure the default email to receive alerts on document expiry dates and how many days before expiry an alert should be sent.
-						</Typography>
-						<TextField
-							label="Global Alert Email"
-							value={globalAlertEmail}
-							onChange={(e) => setGlobalAlertEmail(e.target.value)}
-							fullWidth
-							helperText="The default email to receive alerts on documents expiry dates."
-						/>
-						<TextField
-							label="Alert Days Before Expiry"
-							type="number"
-							value={globalAlertDaysBeforeExpiry}
-							onChange={(e) => setGlobalAlertDaysBeforeExpiry(e.target.value)}
-							fullWidth
-							inputProps={{ min: 0 }}
-							helperText="How many days before a document expires we should send an alert email."
-						/>
+					<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.25, px: 2.5, pt: 1 }}>
 						<Box>
-							<FormControlLabel
-								sx={{ mb: 0 }}
-								control={
-									<Checkbox
-										checked={dailyNotifications}
-										onChange={(e) => setDailyNotifications(e.target.checked)}
-										color="primary"
-									/>
-								}
-								label="Enable daily notifications"
-							/>
-							<Typography
-								variant="caption"
-								sx={{ display: 'block', color: 'text.secondary', ml: 4, mt: '-4px' }}
-							>
-								When enabled, the reminder repeats daily, starting {repeatEveryLabel} before the document expires (set above), until the file is removed.
+							<Typography sx={{ fontWeight: 700, fontSize: 14.5, color: '#334155', mb: 0.75 }}>
+								Global Alert Email
 							</Typography>
+							<EmailChipsInput
+								value={splitEmails(globalAlertEmail)}
+								onChange={(emails) => setGlobalAlertEmail(emails.join(', '))}
+								placeholder={splitEmails(globalAlertEmail).length ? '' : 'Add email…'}
+								helperText="The default emails to receive alerts on document expiry dates. Press Enter after each address. Per-file alert emails override this default."
+								startIcon={<MailOutlineIcon sx={{ fontSize: 18, color: '#94a3b8', ml: 0.5 }} />}
+								ariaLabel="Global alert email"
+							/>
+						</Box>
+						<Box>
+							<Typography sx={{ fontWeight: 700, fontSize: 14.5, color: '#334155', mb: 0.75 }}>
+								Alert Days Before Expiry
+							</Typography>
+							<TextField
+								type="number"
+								size="small"
+								value={globalAlertDaysBeforeExpiry}
+								onChange={(e) => setGlobalAlertDaysBeforeExpiry(e.target.value)}
+								fullWidth
+								inputProps={{ min: 0, 'aria-label': 'Alert days before expiry' }}
+								InputProps={{
+									startAdornment: (
+										<InputAdornment position="start">
+											<EventOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+										</InputAdornment>
+									),
+								}}
+								helperText="How many days before a document expires we should send an alert email."
+							/>
+						</Box>
+						<Box
+							sx={{
+								border: '1px solid #e5e7eb',
+								borderRadius: '12px',
+								bgcolor: '#fbfcfe',
+								px: 2,
+								py: 1.75,
+								display: 'flex',
+								alignItems: 'center',
+								gap: 1.5,
+							}}
+						>
+							<Box sx={{ flex: 1, minWidth: 0 }}>
+								<FormControlLabel
+									sx={{ mb: 0 }}
+									control={
+										<Checkbox
+											checked={dailyNotifications}
+											onChange={(e) => setDailyNotifications(e.target.checked)}
+											color="primary"
+										/>
+									}
+									label={
+										<Typography sx={{ fontWeight: 700, color: '#1f2937' }}>
+											Enable daily notifications
+										</Typography>
+									}
+								/>
+								<Typography
+									variant="caption"
+									sx={{ display: 'block', color: '#64748b', ml: 4, mt: '-2px', lineHeight: 1.5 }}
+								>
+									When enabled, the reminder repeats daily, starting {repeatEveryLabel} before the document expires (set above), until the file is removed.
+								</Typography>
+							</Box>
+							{/* Decorative bell-with-clock illustration; hidden on narrow screens */}
+							<Box sx={{ position: 'relative', flexShrink: 0, mr: 1, display: { xs: 'none', sm: 'block' } }}>
+								<NotificationsNoneOutlinedIcon sx={{ fontSize: 54, color: '#FF7404' }} />
+								<Box
+									sx={{
+										position: 'absolute',
+										bottom: 4,
+										right: -4,
+										width: 22,
+										height: 22,
+										borderRadius: '50%',
+										bgcolor: '#26477C',
+										border: '2px solid #fff',
+										display: 'flex',
+										alignItems: 'center',
+										justifyContent: 'center',
+									}}
+								>
+									<ScheduleIcon sx={{ fontSize: 13, color: '#fff' }} />
+								</Box>
+							</Box>
 						</Box>
 					</DialogContent>
-					<DialogActions sx={{ px: 3, pb: 2 }}>
-						<Button onClick={() => setSettingsOpen(false)} disabled={settingsSaving}>
+					<DialogActions sx={{ px: { xs: 1.5, sm: 2.5 }, pb: 2.5, pt: 0.5, justifyContent: 'space-between' }}>
+						<Button
+							variant="outlined"
+							onClick={() => setSettingsOpen(false)}
+							disabled={settingsSaving}
+							sx={{
+								textTransform: 'none',
+								fontWeight: 600,
+								borderRadius: '10px',
+								px: { xs: 2, sm: 3 },
+								borderColor: '#e5e7eb',
+								color: '#334155',
+								'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+							}}
+						>
 							Cancel
 						</Button>
 						<Button
 							variant="contained"
 							onClick={handleSaveGlobalAlertSettings}
 							disabled={settingsSaving}
-							startIcon={settingsSaving ? <Spinner size={18} /> : null}
+							startIcon={settingsSaving ? <Spinner size={18} /> : <SaveOutlinedIcon />}
+							sx={{
+								textTransform: 'none',
+								fontWeight: 600,
+								borderRadius: '10px',
+								px: { xs: 2, sm: 3 },
+								boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
+							}}
 						>
-							{settingsSaving ? 'Saving...' : 'Save'}
+							{settingsSaving ? 'Saving...' : 'Save Settings'}
 						</Button>
 					</DialogActions>
 				</Dialog>
@@ -806,6 +1055,8 @@ const App = ({ api, database, session, server }) => {
 						editFile={editFile}
 						onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
 						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
+						onFileDeleted={handleFileDeleted}
+						globalAlertEmail={databaseConfig?.alertEmail || ''}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 					/>
@@ -845,6 +1096,22 @@ const App = ({ api, database, session, server }) => {
 					</Button>
 				</DialogActions>
 			</Dialog>
+
+			<ExpiryCalendar
+				open={calendarOpen}
+				onClose={() => setCalendarOpen(false)}
+				files={files}
+				geotabData={geotabData}
+				mobile={mobile}
+				onEditFile={(file) => {
+					setCalendarOpen(false);
+					handeEditFile(file);
+				}}
+				onUploadClick={() => {
+					setCalendarOpen(false);
+					setUploaderOpen(true);
+				}}
+			/>
 
 			<FilePreview
 				files={previewList}

@@ -164,6 +164,16 @@ geotab.addin.hpgpsFilemanager = function () {
          * @param {object} freshState - The page state object allows access to URL, page navigation and global group filter.
          */
         focus: function (freshApi, freshState) {
+            // Alert emails deep-link as #addin-...,fileId:<id>; MyGeotab hands those
+            // URL params to the add-in through state (the iframe can't see the hash).
+            let deepLinkFileId = null;
+            try {
+                const pageState = freshState && typeof freshState.getState === 'function' ? freshState.getState() : {};
+                deepLinkFileId = pageState && pageState.fileId ? String(pageState.fileId) : null;
+            } catch (e) {
+                deepLinkFileId = null;
+            }
+
             // getting the current user to display in the UI
             freshApi.getSession(async (session, server) => {
                 // show main content
@@ -174,7 +184,15 @@ geotab.addin.hpgpsFilemanager = function () {
 
                 if (container && eulaAcceptanceStatus) {
                     const root = createRoot(container);
-                    root.render(<App api={freshApi} database={(session.database || '').toLowerCase()} session={session} server={server} />);
+                    root.render(
+                        <App
+                            api={freshApi}
+                            database={(session.database || '').toLowerCase()}
+                            session={session}
+                            server={server}
+                            deepLinkFileId={deepLinkFileId}
+                        />
+                    );
                 }
             });
         },

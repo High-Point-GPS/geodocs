@@ -6,9 +6,7 @@ import {
     RadioGroup,
     Radio,
     TextField,
-    IconButton,
     Tooltip,
-    Divider,
     Alert,
     AlertTitle,
 } from '@mui/material';
@@ -19,15 +17,17 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Button } from '@mui/material';
 import FileDropzone from './FileDropzone';
-import ClearIcon from '@mui/icons-material/Clear';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
 import Spinner from './Spinner';
+import Popup from './Popup';
+import EmailChipsInput, { splitEmails } from './EmailChipsInput';
 
 // File types GeoDocs accepts (matches the backend validator). Setting these as the file
 // input's `accept` makes mobile pickers expose the Files/document picker (so PDFs and docs
@@ -61,6 +61,8 @@ const Uploader = ({
     onEditComplete,
     onValidationError,
     onCancel,
+    onFileDeleted,
+    globalAlertEmail = '',
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
 }) => {
@@ -91,9 +93,76 @@ const Uploader = ({
     const [editLoad, setEditLoad] = useState(false);
     const [expiryDate, setExpiryDate] = useState(null);
     const [alertEmail, setAlertEmail] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [deleteLoad, setDeleteLoad] = useState(false);
     const [driverCanView, setDriverCanView] = useState(true);
+
+    // Delete from the edit dialog — same backend call as the table's delete action.
+    const handleDeleteFile = async () => {
+        if (!editFile) return;
+        // Captured up front: the callbacks below unmount this dialog and clear editFile.
+        const fileId = editFile.id;
+        const filePath = editFile.path;
+        try {
+            setDeleteLoad(true);
+            const sessionInfo = {
+                database,
+                sessionId: session.sessionId,
+                userName: session.userName,
+                server,
+            };
+
+            const response = await fetch(
+                'https://us-central1-geotabfiles.cloudfunctions.net/deleteDocFile',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session: sessionInfo,
+                        database,
+                        fileId,
+                        filePath,
+                    }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (data.valid === false && onValidationError) {
+                    onValidationError();
+                }
+                console.error('Delete failed:', data.error || '');
+                setDeleteLoad(false);
+                setDeleteConfirm(false);
+                setErrorTitle('Could not delete file');
+                setError(data.error || 'Delete failed. Please try again.');
+                return;
+            }
+
+            // Reset local state before the callbacks unmount this dialog.
+            setDeleteLoad(false);
+            setDeleteConfirm(false);
+            if (onFileDeleted) onFileDeleted(fileId);
+            if (onCancel) onCancel();
+        } catch (err) {
+            console.error('Delete error:', err);
+            setDeleteLoad(false);
+            setDeleteConfirm(false);
+            setErrorTitle('Could not delete file');
+            setError('Delete failed. Please check your connection and try again.');
+        }
+    };
     const [uploadType, setUploadType] = useState('uploadSelection');
     const [clearGroup, setClearGroup] = useState(false);
+    // The stored default may use any delimiters/casing ("a@x.com;B@y.com"); normalize it
+    // for display the same way the chips inputs do.
+    const globalAlertEmailDisplay = splitEmails(globalAlertEmail)
+        .map((e) => e.toLowerCase())
+        .join(', ');
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     // The error/success alert sits at the foot of a tall form (below the action button),
     // so on a small screen it lands below the dialog's visible area. We scroll it into
@@ -144,30 +213,44 @@ const Uploader = ({
             groups: [],
         };
 
+        // Human-readable display names parallel to `owners` (which holds Geotab IDs for
+        // vehicles/drivers/trailers). Saved alongside so the daily expiry email can show
+        // names without a Geotab session. Groups are already stored by name.
+        const ownerNames = {
+            vehicles: [],
+            drivers: [],
+            trailers: [],
+            groups: [],
+        };
+
         const tags = [];
 
         uploadData.vehicles.forEach((vehicle) => {
             owners.vehicles.push(vehicle.value);
+            ownerNames.vehicles.push(vehicle.label);
             tags.push(vehicle.value);
         });
 
         uploadData.drivers.forEach((driver) => {
             owners.drivers.push(driver.value);
+            ownerNames.drivers.push(driver.label);
             tags.push(driver.value);
         });
 
         uploadData.trailers.forEach((trailer) => {
             owners.trailers.push(trailer.value);
+            ownerNames.trailers.push(trailer.label);
             tags.push(trailer.value);
         });
 
         uploadData.groups.forEach((group) => {
             const grouptags = test(group);
             owners.groups.push(group.label, ...grouptags);
+            ownerNames.groups.push(group.label, ...grouptags);
             tags.push(group.label, ...grouptags);
         });
 
-        return { owners, tags };
+        return { owners, tags, ownerNames };
     };
 
     function setCheckedFalse(group) {
@@ -258,7 +341,7 @@ const Uploader = ({
             const fullFileName = `${editName}${fileExtension}`;
             const normalizedAlertEmail = alertEmail.trim() === '' ? null : alertEmail.trim();
 
-            const { owners, tags } = organizeOwnersAndTags();
+            const { owners, tags, ownerNames } = organizeOwnersAndTags();
             const messageBody = {
                 session:   sessionInfo,
                 database,
@@ -266,6 +349,7 @@ const Uploader = ({
                 filePath:  editFile.path,
                 fileName:  fullFileName,       // combined name with extension
                 owners,
+                ownerNames,
                 tags,
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
                 alertEmail: normalizedAlertEmail,
@@ -275,10 +359,14 @@ const Uploader = ({
             // Check if anything actually changed
             const fileNameChanged = fullFileName !== editFile.fileName;
             const expiryChanged = (expiryDate ? expiryDate.toISOString() : null) !== (editFile.expiryDate || null);
-            const ownersChanged = JSON.stringify(owners) !== JSON.stringify(editFile.owners);
-            const tagsChanged = JSON.stringify(tags) !== JSON.stringify(editFile.tags);
+            const ownersChanged = JSON.stringify(owners) !== JSON.stringify(editFile.owners || {});
+            const tagsChanged = JSON.stringify(tags) !== JSON.stringify(editFile.tags || []);
             const fileDataChanged = editName !== editFile.fileName.replace(fileExtension, '');
-            const alertEmailChanged = (alertEmail.trim() || null) !== (editFile.alertEmail || null);
+            // Compare as normalized lists so delimiter/case differences in stored
+            // values ("a@x.com;B@y.com" vs "a@x.com, b@y.com") don't read as changes.
+            const normalizeEmailList = (str) =>
+                splitEmails(str).map((e) => e.toLowerCase()).join(', ') || null;
+            const alertEmailChanged = normalizeEmailList(alertEmail) !== normalizeEmailList(editFile.alertEmail);
             const hideFromDriverChanged = (!driverCanView) !== !!editFile.hideFromDriver;
 
             if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged) {
@@ -321,6 +409,7 @@ const Uploader = ({
                 ...data,
                 fileName: fullFileName,
                 owners,
+                ownerNames,
                 tags,
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
                 alertEmail: normalizedAlertEmail,
@@ -411,7 +500,7 @@ const Uploader = ({
             server
         };
 
-        const { owners, tags } = organizeOwnersAndTags();
+        const { owners, tags, ownerNames } = organizeOwnersAndTags();
 
         const messageBody = {
             session: sessionInfo,
@@ -420,6 +509,7 @@ const Uploader = ({
             fileData: base64,
             contentType: file.type,
             owners: owners,
+            ownerNames: ownerNames,
             tags: tags,
             expiryDate: expiryDate ? expiryDate.toISOString() : undefined,
             alertEmail: normalizedAlertEmail,
@@ -444,7 +534,7 @@ const Uploader = ({
            console.error('Upload File failed: ', errorData.error ? errorData.error : '');
         }
         const responseData = await response.json();
-        return { ...responseData, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView };
+        return { ...responseData, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView, ownerNames };
     };
 
     useEffect(() => {
@@ -491,11 +581,13 @@ const Uploader = ({
       const blob      = await response.blob();
       const fileToEdit = new File([blob], editFile.fileName);
 
-      // Rehydrate your owners/tags state exactly as before
-      const dataVehicles = editFile.owners.vehicles.map(v => `${v}`);
-      const dataDrivers  = editFile.owners.drivers .map(d => `${d}`);
-      const dataTrailers = editFile.owners.trailers.map(t => `${t}`);
-      const dataGroups   = editFile.owners.groups  .map(g => `${g}`);
+      // Rehydrate your owners/tags state exactly as before.
+      // Older documents can come back without an owners object (or with missing keys).
+      const owners = editFile.owners || {};
+      const dataVehicles = (owners.vehicles || []).map(v => `${v}`);
+      const dataDrivers  = (owners.drivers  || []).map(d => `${d}`);
+      const dataTrailers = (owners.trailers || []).map(t => `${t}`);
+      const dataGroups   = (owners.groups   || []).map(g => `${g}`);
 
       if (dataGroups.length === 0) {
         setUploadType('uploadSelection');
@@ -814,18 +906,11 @@ const Uploader = ({
                 )}
                 </Box>{/* end Associations card */}
 
-                <Box sx={{ width: { xs: '100%', md: '75%' }, mt: 0.5 }}>
-                    <Divider sx={{ '&::before, &::after': { borderColor: '#e5e7eb' } }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' }}>
-                            EXPIRATION (OPTIONAL)
-                        </Typography>
-                    </Divider>
-                </Box>
-
-                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ ...sectionCardSx, mb: 1 }}>
+                    <Typography sx={sectionTitleSx}>Expiration (optional)</Typography>
                     <Box
                         sx={{
-                            width: { xs: '100%', sm: '100%', md: '75%' },
+                            width: '100%',
                             display: 'flex',
                             flexDirection: {
                                 xs: 'column',
@@ -835,11 +920,10 @@ const Uploader = ({
                             alignItems: {
                                 xs: 'stretch',
                                 sm: 'stretch',
-                                md: 'center',
+                                md: 'flex-start',
                             },
                             justifyContent: 'center',
                             gap: '1rem',
-                            marginBottom: '1rem',
                         }}
                     >
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -849,31 +933,50 @@ const Uploader = ({
                                 onChange={(newValue) => {
                                     setExpiryDate(newValue);
                                 }}
-                                slotProps={{ textField: { size: 'small' } }}
+                                slotProps={{
+                                    textField: {
+                                        size: 'small',
+                                        // The clear X is hover-only by default on desktop; keep it
+                                        // visible whenever a date is set.
+                                        sx: { '& .clearButton': { opacity: 1 } },
+                                    },
+                                    // Shows an in-field clear (X) only when a date is set.
+                                    field: { clearable: true, onClear: () => setExpiryDate(null) },
+                                    // The mobile picker's field is read-only (no in-field X), so
+                                    // Clear must be offered in its dialog's action bar instead.
+                                    actionBar: ({ wrapperVariant }) => ({
+                                        actions:
+                                            wrapperVariant === 'mobile'
+                                                ? ['clear', 'cancel', 'accept']
+                                                : [],
+                                    }),
+                                }}
                             />
                         </LocalizationProvider>
-                        <Tooltip title="Clear expiry date">
-                            <IconButton
-                                size="small"
-                                onClick={() => setExpiryDate(null)}
-                                disabled={!expiryDate}
-                                color="secondary"
-                            >
-                                <ClearIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
                         {expiryDate ? (
-                            <TextField
-                                label="Expiration email alert"
-                                value={alertEmail}
-                                onChange={(e) => setAlertEmail(e.target.value)}
-                                size="small"
+                            <EmailChipsInput
+                                value={splitEmails(alertEmail)}
+                                onChange={(emails) => setAlertEmail(emails.join(', '))}
+                                label="Expiration alert emails"
+                                placeholder={splitEmails(alertEmail).length ? '' : 'Add email…'}
+                                helperText={
+                                    globalAlertEmailDisplay
+                                        ? splitEmails(alertEmail).length
+                                            ? `Overrides the default (${globalAlertEmailDisplay}) for this file.`
+                                            : `Default: ${globalAlertEmailDisplay} — emails added here override the default for this file.`
+                                        : 'Press Enter after each address.'
+                                }
                                 sx={{
-                                    width: { xs: '100%', sm: '100%', md: '280px' },
+                                    width: { xs: '100%', sm: '100%', md: '340px' },
                                 }}
                             />
                         ) : null}
                     </Box>
+                    {!expiryDate && (
+                        <Typography variant="caption" sx={{ color: '#64748b', textAlign: 'center' }}>
+                            Set a date to get alert emails before this document expires.
+                        </Typography>
+                    )}
                 </Box>
                 <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     {loading ? (
@@ -888,6 +991,22 @@ const Uploader = ({
                                         gap: 1.5,
                                     }}
                                 >
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => setDeleteConfirm(true)}
+                                        startIcon={<DeleteOutlineIcon />}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            borderRadius: '10px',
+                                            px: 3,
+                                            borderColor: '#fecdd3',
+                                            color: '#E11D48',
+                                            '&:hover': { borderColor: '#E11D48', bgcolor: 'rgba(225, 29, 72, 0.04)' },
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
                                     <Button
                                         variant="outlined"
                                         onClick={() => (onCancel ? onCancel() : handleCancelEdit())}
@@ -917,6 +1036,48 @@ const Uploader = ({
                                     >
                                         Save Changes
                                     </Button>
+
+                                    <Popup open={deleteConfirm}>
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                width: '100%',
+                                            }}
+                                        >
+                                            <Typography variant="h6">
+                                                Are you sure you want to delete the following file?
+                                            </Typography>
+                                            <Typography sx={{ width: '100%', overflow: 'clip', mt: 1, fontWeight: 600 }}>
+                                                {editFile?.fileName || ''}
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                                            {deleteLoad ? (
+                                                <Spinner />
+                                            ) : (
+                                                <>
+                                                    <Button
+                                                        variant="contained"
+                                                        color="error"
+                                                        onClick={handleDeleteFile}
+                                                        sx={{ textTransform: 'none', borderRadius: '10px', px: 3 }}
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                    <Button
+                                                        variant="outlined"
+                                                        onClick={() => setDeleteConfirm(false)}
+                                                        sx={{ textTransform: 'none', borderRadius: '10px', px: 3 }}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Box>
+                                    </Popup>
                                 </Box>
                             ) : (
                                 <Button
