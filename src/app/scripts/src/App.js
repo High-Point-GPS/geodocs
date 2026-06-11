@@ -833,7 +833,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 								value={splitEmails(globalAlertEmail)}
 								onChange={(emails) => setGlobalAlertEmail(emails.join(', '))}
 								placeholder={splitEmails(globalAlertEmail).length ? '' : 'Add email…'}
-								helperText="The default emails to receive alerts on document expiry dates. Press Enter after each address. Per-file alert emails override this default."
+								helperText="The default emails to receive alerts on document expiry dates. Press Space or Enter after each address. Per-file alert emails override this default."
 								startIcon={<MailOutlineIcon sx={{ fontSize: 18, color: '#94a3b8', ml: 0.5 }} />}
 								ariaLabel="Global alert email"
 							/>

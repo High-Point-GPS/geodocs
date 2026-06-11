@@ -169,6 +169,15 @@ const Uploader = ({
     const globalAlertEmailDisplay = splitEmails(globalAlertEmail)
         .map((e) => e.toLowerCase())
         .join(', ');
+
+    // Per-file alert addresses matching the global default are redundant — the global
+    // is the fallback recipient when a file has no alert email of its own — so they
+    // are dropped from anything we save.
+    const normalizeAlertEmailForSave = (str) => {
+        const globals = new Set(splitEmails(globalAlertEmail).map((e) => e.toLowerCase()));
+        const kept = splitEmails(str).filter((e) => !globals.has(e.toLowerCase()));
+        return kept.length ? kept.join(', ') : null;
+    };
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
     // The error/success alert sits at the foot of a tall form (below the action button),
     // so on a small screen it lands below the dialog's visible area. We scroll it into
@@ -358,7 +367,7 @@ const Uploader = ({
 
             // Combine filename with extension
             const fullFileName = `${editName}${fileExtension}`;
-            const normalizedAlertEmail = alertEmail.trim() === '' ? null : alertEmail.trim();
+            const normalizedAlertEmail = normalizeAlertEmailForSave(alertEmail);
 
             const { owners, tags, ownerNames } = organizeOwnersAndTags();
             const messageBody = {
@@ -510,7 +519,7 @@ const Uploader = ({
 
     const uploadFile = async (filename, file) => {
         const base64 = await fileToBase64(file);
-        const normalizedAlertEmail = alertEmail.trim() === '' ? null : alertEmail.trim();
+        const normalizedAlertEmail = normalizeAlertEmailForSave(alertEmail);
 
         const sessionInfo = {
             database,
@@ -981,12 +990,13 @@ const Uploader = ({
                                 onChange={(emails) => setAlertEmail(emails.join(', '))}
                                 label="Expiration alert emails"
                                 placeholder={splitEmails(alertEmail).length ? '' : 'Add email…'}
+                                rejectEmails={splitEmails(globalAlertEmail)}
                                 helperText={
                                     globalAlertEmailDisplay
                                         ? splitEmails(alertEmail).length
                                             ? `Overrides the default (${globalAlertEmailDisplay}) for this file.`
                                             : `Default: ${globalAlertEmailDisplay} — emails added here override the default for this file.`
-                                        : 'Press Enter after each address.'
+                                        : 'Press Space or Enter after each address.'
                                 }
                                 sx={{
                                     width: { xs: '100%', sm: '100%', md: '340px' },
