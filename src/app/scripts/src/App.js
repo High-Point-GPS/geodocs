@@ -43,6 +43,16 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 
 import '../../styles/app-styles.css';
 
+// PrimeReact theme + the group-picker overrides, loaded eagerly with the main
+// stylesheet. They are `?global` so the css-sandbox does NOT prefix them — the
+// TreeSelect panel renders at document.body, outside the prefixed scope. Kept here
+// (not in the lazy GroupSelect chunk) because the Geotab embed does not reliably load
+// an async chunk's stylesheet.
+import 'primereact/resources/themes/lara-light-blue/theme.css?global';
+import 'primereact/resources/primereact.min.css?global';
+import 'primeicons/primeicons.css?global';
+import './components/groupTreeSelect.css?global';
+
 import DocumentMobile from './components/DocumentMobile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 

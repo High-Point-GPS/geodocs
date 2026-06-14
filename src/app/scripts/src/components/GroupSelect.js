@@ -8,12 +8,9 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 
-// PrimeReact base + theme, then our overrides — all `?global` so they are NOT
-// sandbox-prefixed (the dropdown panel renders at document.body). See groupTreeSelect.css.
-import 'primereact/resources/themes/lara-light-blue/theme.css?global';
-import 'primereact/resources/primereact.min.css?global';
-import 'primeicons/primeicons.css?global';
-import './groupTreeSelect.css?global';
+// NOTE: the PrimeReact theme + override CSS are imported eagerly in App.js (not here).
+// This component is in a lazy chunk, and the embed does not reliably load an async
+// chunk's stylesheet — so the styles must ride the always-loaded main stylesheet.
 
 // Total number of groups nested under this one (recursive) — shown as the count badge.
 const countDescendants = (group) => {
