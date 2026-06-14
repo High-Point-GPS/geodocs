@@ -28,6 +28,13 @@ import PdfCanvas from './PdfCanvas';
 // signed URL so the file loads directly from GCS (not streamed through the function).
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFileUrl';
 
+// Re-opening the same file (e.g. paging prev/next back to one just viewed) reuses its
+// signed URL within this window instead of calling the function again — and because the
+// GCS objects carry Cache-Control, the browser can then serve the bytes from its own
+// cache. The backend signs for ~10 min; reuse for 8 to keep a safety margin before expiry.
+const signedUrlCache = new Map(); // fileKey -> { url, ts }
+const SIGNED_URL_REUSE_MS = 8 * 60 * 1000;
+
 // Catches a failed lazy-chunk load (offline/network) or a PdfCanvas render error so it
 // degrades to a download prompt instead of blanking the add-in. Resets when the file changes.
 class PdfErrorBoundary extends React.Component {
@@ -74,9 +81,19 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 		let cancelled = false;
 		let createdUrl = null;
 
-		setLoading(true);
 		setError(null);
 		setZoom(1);
+
+		// Reuse a recent signed URL for this file if we have one, skipping the round trip.
+		const cacheKey = file.id != null ? `id:${file.id}` : `path:${file.path}`;
+		const cached = signedUrlCache.get(cacheKey);
+		if (cached && Date.now() - cached.ts < SIGNED_URL_REUSE_MS) {
+			setBlobUrl(cached.url);
+			setLoading(false);
+			return undefined;
+		}
+
+		setLoading(true);
 		setBlobUrl(null);
 
 		(async () => {
@@ -107,6 +124,7 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 				let nextUrl;
 				if (contentType.includes('application/json')) {
 					nextUrl = (await response.json()).url;
+					signedUrlCache.set(cacheKey, { url: nextUrl, ts: Date.now() });
 				} else {
 					const blob = await response.blob();
 					createdUrl = URL.createObjectURL(blob);
