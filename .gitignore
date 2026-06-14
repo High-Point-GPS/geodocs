@@ -2,3 +2,7 @@ node_modules
 
 
 .preview/
+
+# npm audit output artifacts
+audit.json
+audit.err
