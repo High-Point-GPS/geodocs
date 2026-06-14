@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
 	Dialog,
 	Box,
@@ -16,13 +16,13 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 
 import { getFileTypeMeta } from '../utils/formatter';
 import Spinner from './Spinner';
-// Code-split: react-pdf + pdfjs (~most of the app's JS) load only when a PDF is first
-// previewed, not in the main bundle every user downloads on open. The chunk loads from
-// the absolute GitHub Pages host pinned by output.publicPath in webpack.production.js
-// (the my.geotab.com embed breaks webpack's 'auto' base-URL detection). PdfErrorBoundary
-// below already degrades a failed chunk fetch to the download prompt, so a flaky load
-// never blanks the dialog.
-const PdfCanvas = lazy(() => import(/* webpackChunkName: "pdf-viewer" */ './PdfCanvas'));
+// Imported statically, NOT code-split. The add-in runs injected inside the my.geotab.com
+// page, where webpack's async-chunk loading resolves chunk URLs relative to that page
+// (e.g. my.geotab.com/<db>/55.hpgpsFilemanager.js) instead of our host, so a split chunk
+// 404s no matter what publicPath we set. Bundling react-pdf/pdfjs in keeps the viewer
+// working on every host. PdfErrorBoundary below still degrades a render error to the
+// download prompt.
+import PdfCanvas from './PdfCanvas';
 
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';
 
@@ -212,9 +212,7 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 				<PdfErrorBoundary resetKey={blobUrl} renderFallback={renderFallback}>
 					{/* key={blobUrl} -> a fresh Document + fresh state per file (avoids a
 					    stale-page flash and an object-URL revocation race on navigation). */}
-					<Suspense fallback={<Spinner />}>
-						<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
-					</Suspense>
+					<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
 				</PdfErrorBoundary>
 			);
 		}

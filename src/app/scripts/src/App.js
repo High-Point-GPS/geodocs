@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
     Box,
     Dialog,
@@ -17,11 +17,11 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 
-// Deferred: the uploader pulls in the PrimeReact group picker (+ its theme CSS) and the
-// calendar is its own heavy view — neither is needed for the initial document list, so
-// both load only when their dialog is opened.
-const Uploader = lazy(() => import(/* webpackChunkName: "uploader" */ './components/Uploader'));
-const ExpiryCalendar = lazy(() => import(/* webpackChunkName: "expiry-calendar" */ './components/ExpiryCalendar'));
+// Imported statically (NOT code-split). The add-in runs injected inside the my.geotab.com
+// page, where webpack async chunks resolve against that page and 404, so the uploader and
+// calendar are bundled into the main script rather than lazy-loaded.
+import Uploader from './components/Uploader';
+import ExpiryCalendar from './components/ExpiryCalendar';
 import DocumentTable from './components/DocumentTabel';
 import EmailChipsInput, { splitEmails } from './components/EmailChipsInput';
 import FileActions from './components/FileActions';
@@ -1062,22 +1062,20 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 					</IconButton>
 				</DialogTitle>
 				<DialogContent>
-					<Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><Spinner /></Box>}>
-						<Uploader
-							database={database}
-							session={session}
-							server={server}
-							onFileUploaded={(docs) => { handleFilesUploaded(docs); setUploaderOpen(false); }}
-							onValidationError={() => setValidationError(true)}
-							editFile={editFile}
-							onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
-							onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
-							onFileDeleted={handleFileDeleted}
-							globalAlertEmail={databaseConfig?.alertEmail || ''}
-							geotabData={geotabData}
-							setGeotabData={setGeotabData}
-						/>
-					</Suspense>
+					<Uploader
+						database={database}
+						session={session}
+						server={server}
+						onFileUploaded={(docs) => { handleFilesUploaded(docs); setUploaderOpen(false); }}
+						onValidationError={() => setValidationError(true)}
+						editFile={editFile}
+						onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
+						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
+						onFileDeleted={handleFileDeleted}
+						globalAlertEmail={databaseConfig?.alertEmail || ''}
+						geotabData={geotabData}
+						setGeotabData={setGeotabData}
+					/>
 				</DialogContent>
 			</Dialog>
 
@@ -1115,25 +1113,23 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 				</DialogActions>
 			</Dialog>
 
-			{/* Only mount (and load its chunk) once opened. */}
+			{/* Only mount once opened. */}
 			{calendarOpen && (
-				<Suspense fallback={null}>
-					<ExpiryCalendar
-						open={calendarOpen}
-						onClose={() => setCalendarOpen(false)}
-						files={files}
-						geotabData={geotabData}
-						mobile={mobile}
-						onEditFile={(file) => {
-							setCalendarOpen(false);
-							handeEditFile(file);
-						}}
-						onUploadClick={() => {
-							setCalendarOpen(false);
-							setUploaderOpen(true);
-						}}
-					/>
-				</Suspense>
+				<ExpiryCalendar
+					open={calendarOpen}
+					onClose={() => setCalendarOpen(false)}
+					files={files}
+					geotabData={geotabData}
+					mobile={mobile}
+					onEditFile={(file) => {
+						setCalendarOpen(false);
+						handeEditFile(file);
+					}}
+					onUploadClick={() => {
+						setCalendarOpen(false);
+						setUploaderOpen(true);
+					}}
+				/>
 			)}
 
 			<FilePreview

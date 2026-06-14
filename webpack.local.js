@@ -50,8 +50,10 @@ module.exports = merge(common, {
 				type: 'asset/source',
 			},
 			{
+				// App CSS is sandbox-prefixed to avoid leaking into the Geotab page.
 				test: /\.css$/,
 				exclude: /\.dev/,
+				resourceQuery: { not: [/global/] },
 				use: [
 					{
 						loader: MiniCssExtractPlugin.loader,
@@ -64,6 +66,23 @@ module.exports = merge(common, {
 						loader: './src/.dev/loaders/css-sandbox/css-sandbox.js',
 						options: { prefix: '#HPGPS' },
 					},
+				],
+			},
+			{
+				// `?global` imports opt out of the css-sandbox (PrimeReact theme + group
+				// picker overrides). The sandbox parser can't handle the PrimeReact theme,
+				// and the picker's panel renders at document.body, outside the prefixed
+				// scope, so it must stay unprefixed. Mirrors webpack.production.js.
+				test: /\.css$/,
+				resourceQuery: /global/,
+				use: [
+					{
+						loader: MiniCssExtractPlugin.loader,
+						options: {
+							publicPath: '',
+						},
+					},
+					'css-loader',
 				],
 			},
 			{

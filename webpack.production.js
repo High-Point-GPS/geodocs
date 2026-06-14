@@ -9,11 +9,6 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const config = require('./src/app/config.json');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
-// Absolute base URL the add-in is registered to load from (GitHub Pages). Derived from
-// the configured add-in URL by stripping the HTML filename, so it stays in sync with
-// config.json's single source of truth -> 'https://high-point-gps.github.io/geodocs/'.
-const PUBLIC_PATH = config.items[0].url.replace(/[^/]+$/, '');
-
 /**
  * Removes "dev" element of the config tree on production build
  *
@@ -143,14 +138,12 @@ module.exports = merge(common, {
 		}),
 	],
 	output: {
-		// Pin the chunk base URL to the absolute GitHub Pages host. 'auto' can't be used
-		// here: it resolves at runtime from document.currentScript, but inside the
-		// my.geotab.com embed the add-in's bundle isn't the current script when the webpack
-		// runtime runs (MyGeotab injects it as a deferred script), so 'auto' fell back to the
-		// host page and fetched dynamic chunks (the PDF viewer, on-demand CSS) from
-		// my.geotab.com/<db>/ — a 404. An explicit absolute path loads them from where they
-		// actually live regardless of the embedding page.
-		publicPath: PUBLIC_PATH,
+		// Relative publicPath: the HTML's asset tags resolve against whatever host serves
+		// the add-in (Netlify / GitHub Pages), so the single bundle works on any host.
+		// The app is NOT code-split (see App.js / FilePreview.js) precisely because the
+		// my.geotab.com embed can't load webpack async chunks — so there are no runtime
+		// chunk requests that would need an absolute base URL.
+		publicPath: '',
 		assetModuleFilename: '[name][ext][query]',
 	},
 });
