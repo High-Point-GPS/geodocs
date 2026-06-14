@@ -584,7 +584,7 @@ const Uploader = ({
       setEditLoad(true);
 
       const response = await fetch(
-        'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile',
+        'https://us-central1-geotabfiles.cloudfunctions.net/readDocFileUrl',
         {
           method: 'POST',
           headers: {

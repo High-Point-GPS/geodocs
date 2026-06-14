@@ -24,7 +24,9 @@ import Spinner from './Spinner';
 // download prompt.
 import PdfCanvas from './PdfCanvas';
 
-const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';
+// readDocFileUrl validates the Geotab session + tenant, then returns a short-lived
+// signed URL so the file loads directly from GCS (not streamed through the function).
+const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFileUrl';
 
 // Catches a failed lazy-chunk load (offline/network) or a PdfCanvas render error so it
 // degrades to a download prompt instead of blanking the add-in. Resets when the file changes.
