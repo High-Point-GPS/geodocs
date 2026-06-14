@@ -742,7 +742,11 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 						<Button
 							variant="outlined"
 							onClick={() => setCalendarOpen(true)}
-							startIcon={<EventBusyOutlinedIcon />}
+							startIcon={
+								<Badge badgeContent={expiringCount} color="error">
+									<EventBusyOutlinedIcon />
+								</Badge>
+							}
 							sx={{
 								textTransform: 'none',
 								fontWeight: 600,
@@ -761,11 +765,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 						<Button
 							variant="outlined"
 							onClick={() => setSettingsOpen(true)}
-							startIcon={
-								<Badge badgeContent={expiringCount} color="error">
-									<MarkEmailUnreadOutlinedIcon />
-								</Badge>
-							}
+							startIcon={<MarkEmailUnreadOutlinedIcon />}
 							sx={{
 								textTransform: 'none',
 								fontWeight: 600,

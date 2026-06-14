@@ -119,8 +119,12 @@ const ListCell = ({ value, icon: Icon }) => {
     }
     const shown = value.slice(0, 5).join(', ');
     const content = `${shown}${value.length > 5 ? '…' : ''}`;
+    // Cap the cell width so a row with many (or long-named) owners can't stretch its
+    // column. The table sits in an auto-layout container, so an uncapped nowrap cell
+    // would size the whole column to its widest row, push the table past the viewport,
+    // and force a horizontal scrollbar. The full list is always available on hover.
     const inner = (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0, maxWidth: 220 }}>
             {Icon ? <Icon sx={{ fontSize: 16, color: '#94a3b8', flexShrink: 0 }} /> : null}
             <Typography
                 sx={{
@@ -135,12 +139,10 @@ const ListCell = ({ value, icon: Icon }) => {
             </Typography>
         </Box>
     );
-    return value.length > 5 ? (
+    return (
         <Tooltip title={value.join(', ')} arrow>
             {inner}
         </Tooltip>
-    ) : (
-        inner
     );
 };
 
