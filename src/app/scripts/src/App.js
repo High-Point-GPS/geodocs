@@ -367,31 +367,25 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 		try {
 			setLoading(true);
 
-			// get config
-			const configResponse = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/getDatabaseConfig',
-			{
+			// Config and documents are independent — fire both at once so the spinner
+			// time is one round trip, not two.
+			const requestInit = {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					'Accept': 'application/json'
 				},
 				body: JSON.stringify(messageBody)
-			});
+			};
+			const [configResponse, response] = await Promise.all([
+				fetch('https://us-central1-geotabfiles.cloudfunctions.net/getDatabaseConfig', requestInit),
+				fetch('https://us-central1-geotabfiles.cloudfunctions.net/fetchDocumentsForDatabase', requestInit),
+			]);
 
 			const config = await configResponse.json();
 
 			setDatabaseConfig(config);
 
-			const response = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/fetchDocumentsForDatabase',
-			{
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Accept': 'application/json'
-				},
-				body: JSON.stringify(messageBody)
-			});
-			
 			if (!response.ok) {
 				const errorData = await response.json();
 
@@ -480,7 +474,12 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 					return isActive && isId;
 				});
 
-				await updateLegacyData(filteredDevices, results[1], activeTrailers, sessionInfo);
+				// The one-time ID migration sets config.updateFromLegacy once it has run;
+				// skip the round trip entirely on every load thereafter (the backend would
+				// just no-op anyway). Only un-migrated databases pay for it, once.
+				if (!databaseConfig.updateFromLegacy) {
+					await updateLegacyData(filteredDevices, results[1], activeTrailers, sessionInfo);
+				}
 
 				if (!databaseConfig.directBilling) {
 					api.call(

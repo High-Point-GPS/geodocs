@@ -115,7 +115,10 @@ module.exports = merge(common, {
 		}),
 	],
 	output: {
-		publicPath: config.dev.dist.host,
+		// 'auto' makes the webpack runtime derive the base URL from the main script's
+		// own location, so dynamically-imported chunks (the PDF viewer) load from the
+		// same GitHub Pages host inside the Geotab embed instead of a wrong relative URL.
+		publicPath: 'auto',
 		assetModuleFilename: '[name][ext][query]',
 	},
 });

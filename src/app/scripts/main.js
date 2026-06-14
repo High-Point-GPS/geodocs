@@ -3,12 +3,17 @@ import { createRoot } from 'react-dom/client';
 import App from './src/App';
 import '../styles/app-styles.css';
 
-import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
 
 const sessionInfo = {};
+
+// EULA status is resolved once in initialize() and reused — focus() must not pay a
+// backend round trip before rendering. The React root is created once and reused so
+// repeated focus() calls (e.g. on global group-filter changes) don't spin up new roots.
+let eulaAccepted = false;
+let appRoot = null;
 
 const showModal = (shouldShow) => {
    	const backdrop = document.getElementById('eula-modal-backdrop');
@@ -131,6 +136,7 @@ geotab.addin.hpgpsFilemanager = function () {
                 });
 
                 const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
+                eulaAccepted = eulaAcceptanceStatus;
 
                 if (!eulaAcceptanceStatus) {
                     showModal(true);
@@ -138,7 +144,7 @@ geotab.addin.hpgpsFilemanager = function () {
                     showModal(false);
                 }
 
-                
+
 				const acceptButton = document.getElementById('eula-accept-button');
 				const declineButton = document.getElementById('eula-decline-button');
 				acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
@@ -175,25 +181,31 @@ geotab.addin.hpgpsFilemanager = function () {
             }
 
             // getting the current user to display in the UI
-            freshApi.getSession(async (session, server) => {
+            freshApi.getSession((session, server) => {
                 // show main content
                 const container = document.getElementById('app');
+                if (!container) return;
 
                 container.style.display = 'block';
-                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
 
-                if (container && eulaAcceptanceStatus) {
-                    const root = createRoot(container);
-                    root.render(
-                        <App
-                            api={freshApi}
-                            database={(session.database || '').toLowerCase()}
-                            session={session}
-                            server={server}
-                            deepLinkFileId={deepLinkFileId}
-                        />
-                    );
+                // EULA was already resolved in initialize(); don't re-hit the backend on
+                // every focus. If the user hasn't accepted, initialize() showed the modal
+                // and we simply don't mount the app.
+                if (!eulaAccepted) return;
+
+                // Create the root once; re-render into it on later focus() calls.
+                if (!appRoot) {
+                    appRoot = createRoot(container);
                 }
+                appRoot.render(
+                    <App
+                        api={freshApi}
+                        database={(session.database || '').toLowerCase()}
+                        session={session}
+                        server={server}
+                        deepLinkFileId={deepLinkFileId}
+                    />
+                );
             });
         },
 

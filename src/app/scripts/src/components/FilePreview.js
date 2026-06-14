@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
 	Dialog,
 	Box,
@@ -16,9 +16,12 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 
 import { getFileTypeMeta } from '../utils/formatter';
 import Spinner from './Spinner';
-// Bundled (not code-split) so it loads with the main bundle that already loads reliably
-// in the embed — avoids a flaky lazy-chunk fetch on GitHub Pages.
-import PdfCanvas from './PdfCanvas';
+// Code-split: react-pdf + pdfjs (~most of the app's JS) load only when a PDF is first
+// previewed, not in the main bundle every user downloads on open. webpack's 'auto'
+// publicPath makes the chunk load from the same host as the main script (the GitHub
+// Pages embed). PdfErrorBoundary below already degrades a failed chunk fetch to the
+// download prompt, so a flaky load never blanks the dialog.
+const PdfCanvas = lazy(() => import(/* webpackChunkName: "pdf-viewer" */ './PdfCanvas'));
 
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';
 
@@ -208,7 +211,9 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 				<PdfErrorBoundary resetKey={blobUrl} renderFallback={renderFallback}>
 					{/* key={blobUrl} -> a fresh Document + fresh state per file (avoids a
 					    stale-page flash and an object-URL revocation race on navigation). */}
-					<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
+					<Suspense fallback={<Spinner />}>
+						<PdfCanvas key={blobUrl} blobUrl={blobUrl} zoom={zoom} />
+					</Suspense>
 				</PdfErrorBoundary>
 			);
 		}
