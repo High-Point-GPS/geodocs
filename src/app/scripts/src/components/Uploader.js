@@ -578,6 +578,7 @@ const Uploader = ({
         session:  sessionInfo,
         filePath: editFile.path,
         fileName: editFile.fileName,
+        responseMode: 'url',
       };
 
       setEditLoad(true);
@@ -603,9 +604,25 @@ const Uploader = ({
         return;
       }
 
-      // Turn the streamed bytes back into a File
-      const blob      = await response.blob();
-      const fileToEdit = new File([blob], editFile.fileName);
+      // New backend returns { url } (signed URL); legacy streams the bytes. We need the
+      // actual bytes to rebuild a File for the edit form, so in URL mode fetch the object
+      // directly from GCS (cross-origin GET — needs the bucket CORS config; see infra).
+      const contentType = response.headers.get('content-type') || '';
+      let blob;
+      if (contentType.includes('application/json')) {
+        const { url } = await response.json();
+        const fileResponse = await fetch(url);
+        if (!fileResponse.ok) {
+          console.error('Failed to download edit file from storage:', fileResponse.status);
+          return;
+        }
+        blob = await fileResponse.blob();
+      } else {
+        blob = await response.blob();
+      }
+      // Carry GCS's Content-Type so a later re-upload (on filename change) sends the right
+      // MIME type; the previous streamed path produced type: '' here.
+      const fileToEdit = new File([blob], editFile.fileName, { type: blob.type });
 
       // Rehydrate your owners/tags state exactly as before.
       // Older documents can come back without an owners object (or with missing keys).

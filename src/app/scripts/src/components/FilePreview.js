@@ -89,7 +89,7 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 				const response = await fetch(READ_ENDPOINT, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-					body: JSON.stringify({ session: sessionInfo, filePath: file.path, fileName: file.fileName }),
+					body: JSON.stringify({ session: sessionInfo, filePath: file.path, fileName: file.fileName, responseMode: 'url' }),
 				});
 
 				if (!response.ok) {
@@ -98,10 +98,20 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 					throw new Error(errData.error || 'Unable to load this file.');
 				}
 
-				const blob = await response.blob();
+				// New backend returns { url } — a short-lived signed URL the browser loads
+				// directly from GCS. Legacy backend streams the bytes. Handle both so this
+				// bundle is safe whether or not the function has been updated yet.
+				const contentType = response.headers.get('content-type') || '';
+				let nextUrl;
+				if (contentType.includes('application/json')) {
+					nextUrl = (await response.json()).url;
+				} else {
+					const blob = await response.blob();
+					createdUrl = URL.createObjectURL(blob);
+					nextUrl = createdUrl;
+				}
 				if (cancelled) return;
-				createdUrl = URL.createObjectURL(blob);
-				setBlobUrl(createdUrl);
+				setBlobUrl(nextUrl);
 			} catch (err) {
 				if (!cancelled) setError(err.message || 'Unable to load this file.');
 			} finally {
@@ -131,8 +141,11 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 		const link = document.createElement('a');
 		link.href = blobUrl;
 		link.download = file.fileName || 'document';
-		// target/rel give a working fallback on mobile browsers that ignore the
-		// download attribute for blob: URLs (they open it instead of saving).
+		// blobUrl may be a cross-origin GCS signed URL (new backend) or a same-origin
+		// blob: URL (legacy). The `download` attribute is ignored cross-origin, so the
+		// save + filename then comes from the URL's Content-Disposition: attachment;
+		// target=_blank is a safe fallback so a missing disposition opens the file
+		// instead of navigating the add-in away.
 		link.target = '_blank';
 		link.rel = 'noopener';
 		// Some browsers only fire the download when the anchor is in the DOM.
