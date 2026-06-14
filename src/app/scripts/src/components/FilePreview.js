@@ -156,22 +156,34 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 		return () => window.removeEventListener('keydown', onKey);
 	}, [open, goPrev, goNext]);
 
-	const handleDownload = () => {
+	const handleDownload = async () => {
 		if (!blobUrl || !file) return;
-		const link = document.createElement('a');
-		link.href = blobUrl;
-		link.download = file.fileName || 'document';
-		// blobUrl may be a cross-origin GCS signed URL (new backend) or a same-origin
-		// blob: URL (legacy). The `download` attribute is ignored cross-origin, so the
-		// save + filename then comes from the URL's Content-Disposition: attachment;
-		// target=_blank is a safe fallback so a missing disposition opens the file
-		// instead of navigating the add-in away.
-		link.target = '_blank';
-		link.rel = 'noopener';
-		// Some browsers only fire the download when the anchor is in the DOM.
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
+		const name = file.fileName || 'document';
+		// blobUrl is a cross-origin GCS signed URL, where the `download` attribute is
+		// IGNORED (so a plain anchor just opens the file in a tab). Fetch it into a
+		// same-origin object URL first — there `download` IS honored, so it saves with the
+		// right filename. Bucket CORS allows this GET. Falls back to opening the URL if the
+		// fetch fails (e.g. an expired signed URL).
+		try {
+			const resp = await fetch(blobUrl);
+			if (!resp.ok) throw new Error('download fetch failed');
+			const objUrl = URL.createObjectURL(await resp.blob());
+			const link = document.createElement('a');
+			link.href = objUrl;
+			link.download = name;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(objUrl);
+		} catch (e) {
+			const link = document.createElement('a');
+			link.href = blobUrl;
+			link.target = '_blank';
+			link.rel = 'noopener';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
 	};
 
 	const zoomOut = () => setZoom((z) => Math.max(0.25, Math.round((z - 0.25) * 100) / 100));
