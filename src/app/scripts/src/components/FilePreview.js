@@ -17,10 +17,11 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 import { getFileTypeMeta } from '../utils/formatter';
 import Spinner from './Spinner';
 // Code-split: react-pdf + pdfjs (~most of the app's JS) load only when a PDF is first
-// previewed, not in the main bundle every user downloads on open. webpack's 'auto'
-// publicPath makes the chunk load from the same host as the main script (the GitHub
-// Pages embed). PdfErrorBoundary below already degrades a failed chunk fetch to the
-// download prompt, so a flaky load never blanks the dialog.
+// previewed, not in the main bundle every user downloads on open. The chunk loads from
+// the absolute GitHub Pages host pinned by output.publicPath in webpack.production.js
+// (the my.geotab.com embed breaks webpack's 'auto' base-URL detection). PdfErrorBoundary
+// below already degrades a failed chunk fetch to the download prompt, so a flaky load
+// never blanks the dialog.
 const PdfCanvas = lazy(() => import(/* webpackChunkName: "pdf-viewer" */ './PdfCanvas'));
 
 const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFile';

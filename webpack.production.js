@@ -9,6 +9,11 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const config = require('./src/app/config.json');
 const ESLintPlugin = require('eslint-webpack-plugin');
 
+// Absolute base URL the add-in is registered to load from (GitHub Pages). Derived from
+// the configured add-in URL by stripping the HTML filename, so it stays in sync with
+// config.json's single source of truth -> 'https://high-point-gps.github.io/geodocs/'.
+const PUBLIC_PATH = config.items[0].url.replace(/[^/]+$/, '');
+
 /**
  * Removes "dev" element of the config tree on production build
  *
@@ -138,10 +143,14 @@ module.exports = merge(common, {
 		}),
 	],
 	output: {
-		// 'auto' makes the webpack runtime derive the base URL from the main script's
-		// own location, so dynamically-imported chunks (the PDF viewer) load from the
-		// same GitHub Pages host inside the Geotab embed instead of a wrong relative URL.
-		publicPath: 'auto',
+		// Pin the chunk base URL to the absolute GitHub Pages host. 'auto' can't be used
+		// here: it resolves at runtime from document.currentScript, but inside the
+		// my.geotab.com embed the add-in's bundle isn't the current script when the webpack
+		// runtime runs (MyGeotab injects it as a deferred script), so 'auto' fell back to the
+		// host page and fetched dynamic chunks (the PDF viewer, on-demand CSS) from
+		// my.geotab.com/<db>/ — a 404. An explicit absolute path loads them from where they
+		// actually live regardless of the embedding page.
+		publicPath: PUBLIC_PATH,
 		assetModuleFilename: '[name][ext][query]',
 	},
 });
