@@ -129,11 +129,12 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
         [selectedDate]
     );
 
-    // Fresh view each time the popup opens; the filter choice is kept on purpose.
+    // Fresh view each time the popup opens — today is auto-selected so the day panel
+    // shows right away (today's cell also rolls up all past-due docs). Filter is kept.
     useEffect(() => {
         if (open) {
             setMonth(dayjs().startOf('month'));
-            setSelectedDate(null);
+            setSelectedDate(dayjs().format('YYYY-MM-DD'));
         }
     }, [open]);
 
