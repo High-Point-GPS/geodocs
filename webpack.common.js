@@ -1,5 +1,4 @@
 const path = require('path');
-const webpack = require('webpack');
 const HtmlWebPackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
@@ -14,7 +13,8 @@ module.exports = {
 			filename: '[name].css',
 			chunkFilename: '[id].css',
 		}),
-		new webpack.HotModuleReplacementPlugin(),
+		// HMR lives in the dev config only (webpack.development.js) — it has no place in
+		// the production / build-dev bundles, where its runtime was dead weight.
 	],
 	output: {
 		path: path.resolve(__dirname, 'docs'),

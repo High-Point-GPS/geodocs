@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const { merge } = require('webpack-merge');
 const common = require('./webpack.common.js');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
@@ -52,6 +53,7 @@ module.exports = merge(common, {
 		minimizer: [new CssMinimizerPlugin()],
 	},
 	plugins: [
+		new webpack.HotModuleReplacementPlugin(),
 		new ESLintPlugin({
 			extensions: ['js'],
 			exclude: ['node_modules', '/.dev/'],
