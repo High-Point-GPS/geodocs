@@ -92,6 +92,8 @@
 		"@tanstack/match-sorter-utils": "^8.8.4",
 		"@tanstack/react-table": "^8.9.3",
 		"dayjs": "^1.11.12",
+		"primeicons": "^7.0.0",
+		"primereact": "^10.9.8",
 		"react": "^18.2.0",
 		"react-csv": "^2.2.2",
 		"react-dom": "^18.2.0",

@@ -1,0 +1,289 @@
+/*
+ * SaaS-style overrides for the PrimeReact TreeSelect group picker.
+ * Imported with ?global so these selectors are NOT sandbox-prefixed — the dropdown
+ * panel renders at document.body (outside #hpgpsFilemanager), so it must be styled
+ * with global, unprefixed selectors. Scoped under the two custom classes
+ * (.geodocs-group-select / .geodocs-group-panel) to avoid leaking into the host page.
+ */
+
+/* ---- Trigger ---- */
+.geodocs-group-select.p-treeselect {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    min-height: 48px;
+    align-items: center;
+    font-family: Roboto, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+.geodocs-group-select.p-treeselect:not(.p-disabled):hover {
+    border-color: #cbd5e1;
+}
+.geodocs-group-select.p-treeselect:not(.p-disabled).p-focus {
+    border-color: #26477C;
+    box-shadow: 0 0 0 3px rgba(38, 71, 124, 0.12);
+}
+.geodocs-group-select.p-treeselect.p-disabled {
+    background: #f1f5f9;
+    opacity: 1;
+}
+.geodocs-group-select .p-treeselect-label {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+}
+.geodocs-group-select .p-treeselect-trigger {
+    width: 3rem;
+    color: #94a3b8;
+}
+
+/* Selected-value chips (custom valueTemplate) */
+.geodocs-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.geodocs-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #eef2ff;
+    color: #26477C;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1;
+    padding: 6px 10px;
+    border-radius: 9px;
+}
+.geodocs-placeholder {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+/* ---- Panel ---- */
+.geodocs-group-panel.p-treeselect-panel {
+    border: 1px solid #e8edf3;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06);
+    overflow: hidden;
+    background: #ffffff;
+    font-family: Roboto, 'Segoe UI', Helvetica, Arial, sans-serif;
+    /* Never exceed the viewport even when the trigger sits inside a clipped box. */
+    max-width: min(440px, calc(100vw - 24px));
+}
+
+/* Header = the default PrimeReact filter header, restyled as a sticky search bar.
+   It sits outside the scrolling items wrapper, so it stays put while the tree scrolls. */
+.geodocs-group-panel .p-treeselect-header {
+    background: #ffffff;
+    border-bottom: 1px solid #eef2f7;
+    padding: 12px;
+    border-radius: 16px 16px 0 0;
+}
+.geodocs-group-panel .p-treeselect-filter-container {
+    width: 100%;
+    position: relative;
+    display: block;
+}
+.geodocs-group-panel .p-treeselect-filter {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px 10px 38px;
+    font-size: 14px;
+    background: #f8fafc;
+    transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.geodocs-group-panel .p-treeselect-filter:focus {
+    outline: none;
+    border-color: #26477C;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(38, 71, 124, 0.12);
+}
+.geodocs-group-panel .p-treeselect-filter-icon {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    margin-top: -7px;
+    width: 15px;
+    height: 15px;
+    color: #94a3b8;
+}
+/* No in-panel close X — clicking outside dismisses, keeping the header clean. */
+.geodocs-group-panel .p-treeselect-close {
+    display: none;
+}
+
+/* Footer toolbar: Expand all / Collapse all */
+.geodocs-panel-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid #eef2f7;
+    background: #fbfcfe;
+    border-radius: 0 0 16px 16px;
+}
+.geodocs-link-btn {
+    display: inline-flex;
+    align-items: center;
+    border: none;
+    background: none;
+    color: #26477C;
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-family: inherit;
+}
+.geodocs-link-btn:hover {
+    background: #eef2ff;
+}
+.geodocs-dot {
+    color: #cbd5e1;
+}
+
+/* Tree body */
+.geodocs-group-panel .p-tree {
+    border: none;
+    padding: 8px;
+    background: transparent;
+}
+.geodocs-group-panel .p-tree ul,
+.geodocs-group-panel .p-tree li.p-treenode {
+    list-style: none;
+    margin: 0;
+}
+.geodocs-group-panel .p-tree .p-treenode-children {
+    padding: 0 0 0 18px;
+    margin: 0;
+}
+/* Node row laid out explicitly so it never depends on theme internals (PrimeReact 10
+   keeps some of this in the theme, which loads as a separate chunk CSS). */
+.geodocs-group-panel .p-tree .p-treenode-content {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    border-radius: 10px;
+    padding: 4px 6px;
+    gap: 4px;
+    transition: background-color 100ms ease;
+}
+.geodocs-group-panel .p-tree .p-tree-toggler {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.geodocs-group-panel .p-tree .p-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: auto;
+    height: auto;
+    position: relative;
+}
+.geodocs-group-panel .p-tree .p-treenode-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+/* Leaf nodes (no toggler) get an indent so their checkbox lines up under the parent's. */
+.geodocs-group-panel .p-tree .p-treenode-leaf .p-treenode-content .p-tree-toggler {
+    visibility: hidden;
+    width: 26px;
+}
+.geodocs-group-panel .p-tree .p-treenode-content:hover {
+    background: #f1f5f9;
+}
+.geodocs-group-panel .p-tree .p-treenode-content.p-highlight {
+    background: #e8effb;
+}
+.geodocs-group-panel .p-tree .p-treenode-content.p-treenode-selectable:focus {
+    box-shadow: inset 0 0 0 2px rgba(38, 71, 124, 0.25);
+}
+/* Toggler (expand/collapse caret) */
+.geodocs-group-panel .p-tree-toggler {
+    width: 26px;
+    height: 26px;
+    color: #94a3b8;
+    border-radius: 8px;
+}
+.geodocs-group-panel .p-tree-toggler:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+/* Modern checkbox */
+.geodocs-group-panel .p-checkbox .p-checkbox-box {
+    width: 19px;
+    height: 19px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 6px;
+    transition: background-color 100ms ease, border-color 100ms ease;
+}
+.geodocs-group-panel .p-checkbox .p-checkbox-box.p-highlight {
+    background: #26477C;
+    border-color: #26477C;
+}
+.geodocs-group-panel .p-checkbox .p-checkbox-box.p-highlight:hover {
+    background: #1e3a5f;
+    border-color: #1e3a5f;
+}
+.geodocs-group-panel .p-checkbox .p-checkbox-box .p-checkbox-icon {
+    font-size: 12px;
+    color: #ffffff;
+}
+/* Partial selection */
+.geodocs-group-panel .p-checkbox .p-checkbox-box.p-indeterminate {
+    background: #c7d2fe;
+    border-color: #94a3b8;
+}
+
+/* Custom node: [icon] label [count] */
+.geodocs-node {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+.geodocs-node-icon {
+    display: inline-flex;
+    color: #64748b;
+}
+.geodocs-node-label {
+    font-size: 14px;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.geodocs-count {
+    margin-left: auto;
+    background: #eef2f7;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 3px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+.geodocs-group-panel .p-treenode-content.p-highlight .geodocs-count {
+    background: #d8e3f6;
+    color: #26477C;
+}
+
+.geodocs-group-panel .p-tree-empty-message {
+    color: #94a3b8;
+    font-size: 14px;
+    padding: 20px;
+    text-align: center;
+}

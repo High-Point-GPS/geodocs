@@ -205,15 +205,13 @@ const Uploader = ({
     const handleUpdateGroup = (newGroupData) => {
         let groups = [...newGroupData];
 
-        // "Company Group" is the root: it includes every other group, so any other
-        // selection is redundant. Collapse to just it and uncheck the rest in the tree.
+        // "Company Group" is the root: selecting it includes every other group, so any
+        // other top-level selection is redundant — collapse to just it. (Its childrenList
+        // is still expanded into the stored owners/tags, so driver visibility is intact;
+        // the picker manages its own checkbox state, so no tree mutation here.)
         const company = groups.find((g) => isCompanyGroupLabel(g.label));
         if (company && groups.length > 1) {
             groups = [company];
-            const newTreeData = [...geotabData.groups];
-            newTreeData.forEach((g) => setCheckedFalse(g));
-            newTreeData.forEach((g) => setCheckedTrue(g, [{ label: company.label }]));
-            setGeotabData({ ...geotabData, groups: newTreeData });
         }
 
         setUploadData({ ...uploadData, groups });

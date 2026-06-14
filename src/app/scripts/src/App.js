@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, lazy, Suspense } from 'react';
 import {
     Box,
     Dialog,
@@ -17,9 +17,12 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 
-import Uploader from './components/Uploader';
+// Deferred: the uploader pulls in the PrimeReact group picker (+ its theme CSS) and the
+// calendar is its own heavy view — neither is needed for the initial document list, so
+// both load only when their dialog is opened.
+const Uploader = lazy(() => import(/* webpackChunkName: "uploader" */ './components/Uploader'));
+const ExpiryCalendar = lazy(() => import(/* webpackChunkName: "expiry-calendar" */ './components/ExpiryCalendar'));
 import DocumentTable from './components/DocumentTabel';
-import ExpiryCalendar from './components/ExpiryCalendar';
 import EmailChipsInput, { splitEmails } from './components/EmailChipsInput';
 import FileActions from './components/FileActions';
 import FilePreview from './components/FilePreview';
@@ -981,17 +984,21 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 				</>
 			)}
 
-			<Dialog 
-				open={uploaderOpen} 
+			<Dialog
+				open={uploaderOpen}
 				onClose={() => {
 					setUploaderOpen(false);
 					// Clear edit state when closing dialog
 					if (editFile) {
 						setEditFile(null);
 					}
-				}} 
-				maxWidth="lg" 
+				}}
+				maxWidth="lg"
 				fullWidth
+				// The group picker's dropdown panel renders at document.body (outside this
+				// dialog) so its search field can be focused/typed in without MUI's focus
+				// trap stealing focus back.
+				disableEnforceFocus
 			>
 				<DialogTitle sx={{ m: 0, p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eef2f7' }}>
 					{editFile ? (
@@ -1045,20 +1052,22 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 					</IconButton>
 				</DialogTitle>
 				<DialogContent>
-					<Uploader
-						database={database}
-						session={session}
-						server={server}
-						onFileUploaded={(docs) => { handleFilesUploaded(docs); setUploaderOpen(false); }}
-						onValidationError={() => setValidationError(true)}
-						editFile={editFile}
-						onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
-						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
-						onFileDeleted={handleFileDeleted}
-						globalAlertEmail={databaseConfig?.alertEmail || ''}
-						geotabData={geotabData}
-						setGeotabData={setGeotabData}
-					/>
+					<Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}><Spinner /></Box>}>
+						<Uploader
+							database={database}
+							session={session}
+							server={server}
+							onFileUploaded={(docs) => { handleFilesUploaded(docs); setUploaderOpen(false); }}
+							onValidationError={() => setValidationError(true)}
+							editFile={editFile}
+							onEditComplete={(id, updateDoc) => { handleFileEditComplete(id, updateDoc); setUploaderOpen(false); }}
+							onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
+							onFileDeleted={handleFileDeleted}
+							globalAlertEmail={databaseConfig?.alertEmail || ''}
+							geotabData={geotabData}
+							setGeotabData={setGeotabData}
+						/>
+					</Suspense>
 				</DialogContent>
 			</Dialog>
 
@@ -1096,21 +1105,26 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 				</DialogActions>
 			</Dialog>
 
-			<ExpiryCalendar
-				open={calendarOpen}
-				onClose={() => setCalendarOpen(false)}
-				files={files}
-				geotabData={geotabData}
-				mobile={mobile}
-				onEditFile={(file) => {
-					setCalendarOpen(false);
-					handeEditFile(file);
-				}}
-				onUploadClick={() => {
-					setCalendarOpen(false);
-					setUploaderOpen(true);
-				}}
-			/>
+			{/* Only mount (and load its chunk) once opened. */}
+			{calendarOpen && (
+				<Suspense fallback={null}>
+					<ExpiryCalendar
+						open={calendarOpen}
+						onClose={() => setCalendarOpen(false)}
+						files={files}
+						geotabData={geotabData}
+						mobile={mobile}
+						onEditFile={(file) => {
+							setCalendarOpen(false);
+							handeEditFile(file);
+						}}
+						onUploadClick={() => {
+							setCalendarOpen(false);
+							setUploaderOpen(true);
+						}}
+					/>
+				</Suspense>
+			)}
 
 			<FilePreview
 				files={previewList}

@@ -43,8 +43,13 @@ module.exports = merge(common, {
 				type: 'asset/source',
 			},
 			{
+				// App CSS is sandbox-prefixed (#hpgpsFilemanager) to avoid leaking into the
+				// Geotab page. `?global` imports opt out — used for PrimeReact + the group
+				// picker overrides, whose dropdown panel renders at document.body (outside
+				// the prefixed scope) and so must be styled with unprefixed selectors.
 				test: /\.css$/,
 				exclude: /\.dev/,
+				resourceQuery: { not: [/global/] },
 				use: [
 					{
 						loader: MiniCssExtractPlugin.loader,
@@ -57,6 +62,19 @@ module.exports = merge(common, {
 						loader: './src/.dev/loaders/css-sandbox/css-sandbox.js',
 						options: { prefix: '#hpgpsFilemanager' },
 					},
+				],
+			},
+			{
+				test: /\.css$/,
+				resourceQuery: /global/,
+				use: [
+					{
+						loader: MiniCssExtractPlugin.loader,
+						options: {
+							publicPath: config.dev.dist.host,
+						},
+					},
+					'css-loader',
 				],
 			},
 			{
@@ -86,6 +104,11 @@ module.exports = merge(common, {
 				test: /\.(png|svg|jpg|gif)$/,
 				exclude: /\.dev/,
 				resourceQuery: { not: [/inline/] },
+				type: 'asset/resource',
+			},
+			{
+				// Roboto (@fontsource) and PrimeIcons font files.
+				test: /\.(woff2?|ttf|eot)$/,
 				type: 'asset/resource',
 			},
 		],
