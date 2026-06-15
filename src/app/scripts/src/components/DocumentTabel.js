@@ -121,30 +121,37 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
         return displayFiles.filter((f) => f.expiryDate && dayjs(f.expiryDate) < now);
     }, [displayFiles, showExpiredOnly]);
 
-    // Distinct owner names across the visible rows, grouped by kind — these power the
-    // search box's autocomplete suggestions. Picking one sets the global filter, which
-    // matches the owner columns (see globalStringFilter).
-    const searchSuggestions = useMemo(() => {
-        const KINDS = { vehicles: 'Vehicles', drivers: 'Drivers', trailers: 'Trailers', groups: 'Groups' };
-        const order = { Vehicles: 0, Drivers: 1, Trailers: 2, Groups: 3 };
-        const seen = new Set();
-        const opts = [];
+    // Distinct values present in the visible rows, keyed by column label — these power
+    // the autocomplete suggestions in both the global search box and each column's filter.
+    // Keyed by display label (not column id) to match how columns are addressed elsewhere
+    // (react-table mangles dotted accessor ids, e.g. "owners.groups" -> "owners_groups").
+    const columnSuggestions = useMemo(() => {
+        const sets = { File: new Set(), Groups: new Set(), Vehicles: new Set(), Drivers: new Set(), Trailers: new Set() };
+        const ownerKinds = { groups: 'Groups', vehicles: 'Vehicles', drivers: 'Drivers', trailers: 'Trailers' };
+        const add = (set, v) => {
+            const label = String(v ?? '').trim();
+            if (label) set.add(label);
+        };
         tableData.forEach((f) => {
-            Object.keys(KINDS).forEach((k) => {
+            add(sets.File, f.fileName);
+            Object.keys(ownerKinds).forEach((k) => {
                 const list = Array.isArray(f.owners?.[k]) ? f.owners[k] : [];
-                list.forEach((n) => {
-                    const label = String(n ?? '').trim();
-                    if (!label) return;
-                    const key = k + '|' + label.toLowerCase();
-                    if (seen.has(key)) return;
-                    seen.add(key);
-                    opts.push({ kind: KINDS[k], label });
-                });
+                list.forEach((n) => add(sets[ownerKinds[k]], n));
             });
         });
-        opts.sort((a, b) => (order[a.kind] - order[b.kind]) || a.label.localeCompare(b.label));
-        return opts;
+        const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b));
+        return { File: sorted(sets.File), Groups: sorted(sets.Groups), Vehicles: sorted(sets.Vehicles), Drivers: sorted(sets.Drivers), Trailers: sorted(sets.Trailers) };
     }, [tableData]);
+
+    // Global search box options: owner names grouped by kind. Picking one sets the global
+    // filter, which matches the owner columns (see globalStringFilter).
+    const searchSuggestions = useMemo(
+        () =>
+            ['Vehicles', 'Drivers', 'Trailers', 'Groups'].flatMap((kind) =>
+                (columnSuggestions[kind] || []).map((label) => ({ kind, label }))
+            ),
+        [columnSuggestions]
+    );
 
     const table = useReactTable({
         data: tableData,
@@ -438,7 +445,7 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                                                         <UnfoldMoreIcon sx={{ fontSize: 15, color: '#cbd5e1' }} />
                                                     ))}
                                             </Box>
-                                            {canFilter ? <Filter column={col} name={label} /> : null}
+                                            {canFilter ? <Filter column={col} name={label} suggestions={columnSuggestions[label]} /> : null}
                                             {col.id === 'action' && (
                                                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
                                                     <Button
