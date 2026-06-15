@@ -181,7 +181,7 @@ geotab.addin.hpgpsFilemanager = function () {
             }
 
             // getting the current user to display in the UI
-            freshApi.getSession((session, server) => {
+            const mount = (session, server) => {
                 // show main content
                 const container = document.getElementById('app');
                 if (!container) return;
@@ -206,7 +206,18 @@ geotab.addin.hpgpsFilemanager = function () {
                         deepLinkFileId={deepLinkFileId}
                     />
                 );
-            });
+            };
+
+            // initialize() already resolved the session into sessionInfo before MyGeotab
+            // could call focus() (it gates focus on initializeCallback, which fires inside
+            // the initialize getSession callback). Reuse it so we don't pay a second
+            // getSession round trip before the first render. Fall back to a fresh
+            // getSession only if sessionInfo somehow isn't populated yet.
+            if (sessionInfo.sessionId) {
+                mount(sessionInfo, sessionInfo.server);
+            } else {
+                freshApi.getSession((session, server) => mount(session, server));
+            }
         },
 
         /**

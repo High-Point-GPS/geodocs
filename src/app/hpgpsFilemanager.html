@@ -6,12 +6,14 @@
 		<meta name="description" content="" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>GeoDocs</title>
+		<!-- Warm the TLS/DNS/TCP connection to the backend in parallel with bundle parse,
+		     so the first critical-path POST (checkEula, then getDatabaseConfig /
+		     fetchDocumentsForDatabase) doesn't pay full connection setup. -->
+		<link rel="preconnect" href="https://us-central1-geotabfiles.cloudfunctions.net" crossorigin />
 	</head>
 
 	<body>
 		<div id="HPGPS">
-			<div id="app">
-			</div>
 			<div id="app">
 			</div>
 			<div id="eula-modal-backdrop" class="modal-backdrop" style="display: none;">

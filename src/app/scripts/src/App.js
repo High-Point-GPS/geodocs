@@ -122,7 +122,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 	const [tableFiles, setTableFiles] = useState([]);
 	const [editFile, setEditFile] = useState(null);
 	const [mobile, setMobile] = useState(false);
-	const [loading, setLoading] = useState(false);
+	// Start true so the branded spinner shows the instant the app mounts, instead of
+	// flashing an empty table for one frame before the fetchFiles effect sets it.
+	const [loading, setLoading] = useState(true);
 	const [validationError, setValidationError] = useState(false);
 	const [databaseConfig, setDatabaseConfig] = useState({});
 	const [settingsOpen, setSettingsOpen] = useState(false);
