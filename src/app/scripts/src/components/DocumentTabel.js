@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
-import DebouncedInput from './DebouncedInput';
 import Filter from './Filter';
 
 import {
+    Autocomplete,
     Box,
     Button,
     Chip,
@@ -13,6 +13,7 @@ import {
     TableRow,
     TableHead,
     TableCell,
+    TextField,
     Typography,
     Paper,
     IconButton,
@@ -120,6 +121,31 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
         return displayFiles.filter((f) => f.expiryDate && dayjs(f.expiryDate) < now);
     }, [displayFiles, showExpiredOnly]);
 
+    // Distinct owner names across the visible rows, grouped by kind — these power the
+    // search box's autocomplete suggestions. Picking one sets the global filter, which
+    // matches the owner columns (see globalStringFilter).
+    const searchSuggestions = useMemo(() => {
+        const KINDS = { vehicles: 'Vehicles', drivers: 'Drivers', trailers: 'Trailers', groups: 'Groups' };
+        const order = { Vehicles: 0, Drivers: 1, Trailers: 2, Groups: 3 };
+        const seen = new Set();
+        const opts = [];
+        tableData.forEach((f) => {
+            Object.keys(KINDS).forEach((k) => {
+                const list = Array.isArray(f.owners?.[k]) ? f.owners[k] : [];
+                list.forEach((n) => {
+                    const label = String(n ?? '').trim();
+                    if (!label) return;
+                    const key = k + '|' + label.toLowerCase();
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    opts.push({ kind: KINDS[k], label });
+                });
+            });
+        });
+        opts.sort((a, b) => (order[a.kind] - order[b.kind]) || a.label.localeCompare(b.label));
+        return opts;
+    }, [tableData]);
+
     const table = useReactTable({
         data: tableData,
         columns: columns,
@@ -224,20 +250,40 @@ const DocumentTable = ({ files, geotabData, globalAlertEmail, onOrderedFilesChan
                         }}
                     >
                         <Box sx={{ width: '100%', maxWidth: 360 }}>
-                            <DebouncedInput
-                                value={globalFilter ?? ''}
-                                onChange={(value) => setGlobalFilter(String(value))}
-                                placeholder="Search all columns..."
+                            <Autocomplete
+                                freeSolo
                                 fullWidth
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                                        </InputAdornment>
-                                    ),
-                                    sx: { borderRadius: '10px', bgcolor: '#fff' },
+                                size="small"
+                                options={searchSuggestions}
+                                groupBy={(o) => (typeof o === 'string' ? '' : o.kind)}
+                                getOptionLabel={(o) => (typeof o === 'string' ? o : o.label)}
+                                isOptionEqualToValue={(o, v) => o.kind === v.kind && o.label === v.label}
+                                inputValue={globalFilter ?? ''}
+                                onInputChange={(e, value, reason) => {
+                                    if (reason === 'input' || reason === 'clear') setGlobalFilter(String(value));
                                 }}
-                                sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e5e7eb' } }}
+                                onChange={(e, value) => {
+                                    setGlobalFilter(value == null ? '' : (typeof value === 'string' ? value : value.label));
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        placeholder="Search files, vehicles, drivers, trailers, groups..."
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            startAdornment: (
+                                                <>
+                                                    <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                                                        <SearchIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                                    </InputAdornment>
+                                                    {params.InputProps.startAdornment}
+                                                </>
+                                            ),
+                                            sx: { borderRadius: '10px', bgcolor: '#fff' },
+                                        }}
+                                        sx={{ '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e5e7eb' } }}
+                                    />
+                                )}
                             />
                         </Box>
 
