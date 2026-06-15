@@ -117,7 +117,7 @@ const theme = createTheme({
 });
 
 
-const App = ({ api, database, session, server, deepLinkFileId = null }) => {
+const App = ({ api, database, session, server, deepLinkFileId = null, onRequireEula }) => {
 	const [files, setFiles] = useState([]);
 	const [tableFiles, setTableFiles] = useState([]);
 	const [editFile, setEditFile] = useState(null);
@@ -189,6 +189,18 @@ const App = ({ api, database, session, server, deepLinkFileId = null }) => {
 		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
 		setDailyNotifications(!!dn);
 	}, [settingsOpen, databaseConfig]);
+
+	// EULA acceptance rides along in the config we already fetch (config.eula is the list of
+	// usernames who accepted) — there is no separate checkEula round trip blocking the mount.
+	// Once the config is in, show the EULA modal only if THIS user hasn't accepted. This runs
+	// after the app has already painted, so accepted users (the overwhelming majority) never
+	// wait on it; unaccepted users get the modal a beat after load.
+	useEffect(() => {
+		if (!databaseConfig || Object.keys(databaseConfig).length === 0) return;
+		if (databaseConfig.valid === false) return; // session/auth failure is surfaced separately
+		const accepted = Array.isArray(databaseConfig.eula) && databaseConfig.eula.includes(session?.userName);
+		if (!accepted && typeof onRequireEula === 'function') onRequireEula();
+	}, [databaseConfig, session, onRequireEula]);
 
 	const handeEditFile = (fileData) => {
 		setEditFile({ ...fileData });

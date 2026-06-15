@@ -9,10 +9,8 @@ import '@fontsource/roboto/700.css';
 
 const sessionInfo = {};
 
-// EULA status is resolved once in initialize() and reused — focus() must not pay a
-// backend round trip before rendering. The React root is created once and reused so
-// repeated focus() calls (e.g. on global group-filter changes) don't spin up new roots.
-let eulaAccepted = false;
+// The React root is created once and reused so repeated focus() calls (e.g. on global
+// group-filter changes) don't spin up new roots.
 let appRoot = null;
 
 const showModal = (shouldShow) => {
@@ -76,33 +74,6 @@ const redirectToDashboard = () => {
     }
 };
 
-const isEulaAccepted = async (userName) => {
-    const endpoint = 'https://us-central1-geotabfiles.cloudfunctions.net/checkEula';
-
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                session: sessionInfo,
-                database: sessionInfo.database,
-                username: userName
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Server responded with ${response.status}`);
-        }
-
-        const data = await response.json();
-        return !!data.eulaAccepted;
-    } catch (error) {
-        console.error('Failed to check EULA acceptance:', error);
-        return false;
-    }
-};
-
-
 /**
  * @returns {{initialize: Function, focus: Function, blur: Function, startup; Function, shutdown: Function}}
  */
@@ -125,8 +96,8 @@ geotab.addin.hpgpsFilemanager = function () {
         initialize: function (freshApi, freshState, initializeCallback) {
             // Loading translations if available
 
-            freshApi.getSession(async (session, server) => {
-                    Object.assign(sessionInfo, {
+            freshApi.getSession((session, server) => {
+                Object.assign(sessionInfo, {
                     // Database is always treated lowercase so document lookups are
                     // case-insensitive (Geotab may return the name in any case).
                     database: (session.database || '').toLowerCase(),
@@ -135,24 +106,19 @@ geotab.addin.hpgpsFilemanager = function () {
                     server: server
                 });
 
-                const eulaAcceptanceStatus = await isEulaAccepted(sessionInfo.userName);
-                eulaAccepted = eulaAcceptanceStatus;
+                // Wire the EULA modal's buttons up front, then hand control straight back to
+                // MyGeotab. We deliberately do NOT make a checkEula round trip here: <App>
+                // derives EULA acceptance from config.eula (already returned by
+                // getDatabaseConfig) and shows this modal afterward only if the user hasn't
+                // accepted — so the mount is never blocked on it, and already-accepted users
+                // (the common case) pay zero EULA-related latency on load.
+                const acceptButton = document.getElementById('eula-accept-button');
+                const declineButton = document.getElementById('eula-decline-button');
+                if (acceptButton) acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
+                if (declineButton) declineButton.addEventListener('click', () => handleButtonClick('Decline', freshApi));
 
-                if (!eulaAcceptanceStatus) {
-                    showModal(true);
-                } else {
-                    showModal(false);
-                }
-
-
-				const acceptButton = document.getElementById('eula-accept-button');
-				const declineButton = document.getElementById('eula-decline-button');
-				acceptButton.addEventListener('click', () => handleButtonClick('Accept', freshApi));
-				declineButton.addEventListener('click', () => handleButtonClick('Decline', freshApi));
-
-                    
-            // MUST call initializeCallback when done any setup
-            initializeCallback();
+                // MUST call initializeCallback when done any setup
+                initializeCallback();
             });
 
 
@@ -188,11 +154,6 @@ geotab.addin.hpgpsFilemanager = function () {
 
                 container.style.display = 'block';
 
-                // EULA was already resolved in initialize(); don't re-hit the backend on
-                // every focus. If the user hasn't accepted, initialize() showed the modal
-                // and we simply don't mount the app.
-                if (!eulaAccepted) return;
-
                 // Create the root once; re-render into it on later focus() calls.
                 if (!appRoot) {
                     appRoot = createRoot(container);
@@ -204,6 +165,7 @@ geotab.addin.hpgpsFilemanager = function () {
                         session={session}
                         server={server}
                         deepLinkFileId={deepLinkFileId}
+                        onRequireEula={() => showModal(true)}
                     />
                 );
             };
