@@ -28,6 +28,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import '../../../styles/app-styles.css';
 import AssociateSelect from './AssociateSelect';
 import GroupSelect from './GroupSelect';
@@ -102,6 +103,13 @@ const Uploader = ({
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleteLoad, setDeleteLoad] = useState(false);
     const [driverCanView, setDriverCanView] = useState(true);
+    // "Replace file" in the edit dialog: when the user picks a new file we swap it into
+    // uploadFiles[0] and flag it, so the save sends the new bytes (editDocFile overwrites
+    // the stored object in place, keeping the same record/associations/alerts). The original
+    // file + extension are kept in refs so "Use original" can undo without a re-download.
+    const [fileReplaced, setFileReplaced] = useState(false);
+    const originalFileRef = useRef(null);
+    const originalExtRef = useRef('');
 
     // Delete from the edit dialog — same backend call as the table's delete action.
     const handleDeleteFile = async () => {
@@ -316,6 +324,7 @@ const Uploader = ({
         setUploadFiles([]);
         setAlertEmail('');
         setDriverCanView(true);
+        setFileReplaced(false);
         const emptyData = {
             vehicles: [],
             drivers: [],
@@ -331,6 +340,28 @@ const Uploader = ({
     const handleCancelEdit = () => {
         clearUploadForm();
         setEditMode(false);
+    };
+
+    // Edit dialog: user picked a replacement file. FileDropzone emits { filename, file }
+    // wrappers, but the edit-save path (and the image preview) expect a raw File in
+    // uploadFiles[0], so unwrap to the raw File. Adopt the replacement's extension (its type
+    // may differ from the original) while keeping the curated base name in the name field.
+    const handleReplaceFile = (items) => {
+        const wrapped = Array.isArray(items) ? items[items.length - 1] : null;
+        const raw = wrapped && wrapped.file ? wrapped.file : null;
+        if (!raw) return;
+        setUploadFiles([raw]);
+        setFileReplaced(true);
+        const dot = raw.name.lastIndexOf('.');
+        setFileExtension(dot > 0 ? raw.name.substring(dot) : '');
+    };
+
+    // Undo a pending replacement — restore the originally-loaded file/extension (kept in refs,
+    // so no re-download).
+    const handleUseOriginalFile = () => {
+        if (originalFileRef.current) setUploadFiles([originalFileRef.current]);
+        setFileExtension(originalExtRef.current);
+        setFileReplaced(false);
     };
 
     const handeEditFile = async () => {
@@ -395,13 +426,16 @@ const Uploader = ({
             const alertEmailChanged = normalizeEmailList(alertEmail) !== normalizeEmailList(editFile.alertEmail);
             const hideFromDriverChanged = (!driverCanView) !== !!editFile.hideFromDriver;
 
-            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged) {
+            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged && !fileReplaced) {
                 setError('No changes made. Please modify the file or its details before saving.');
                 setLoading(false);
                 return;
             }
 
-            if (fileNameChanged) {
+            // Send the new bytes when the user renamed the file OR replaced it. editDocFile
+            // overwrites the stored object in place when the name is unchanged, or repoints
+            // the path (and deletes the old object) when the name/extension changed.
+            if (fileNameChanged || fileReplaced) {
                 const file     = uploadFiles[0];
                 const base64   = await fileToBase64(file);
                 messageBody.fileData    = base64;
@@ -658,6 +692,9 @@ const Uploader = ({
       });
 
       setUploadFiles([fileToEdit]);
+      // Keep the originally-loaded file so a pending "Replace" can be undone without refetching.
+      originalFileRef.current = fileToEdit;
+      setFileReplaced(false);
 
       // Extract extension and filename separately
       const lastDotIndex = editFile.fileName.lastIndexOf('.');
@@ -666,6 +703,7 @@ const Uploader = ({
 
       setEditName(nameWithoutExt);
       setFileExtension(ext);
+      originalExtRef.current = ext;
 
       if (editFile.expiryDate) {
         setExpiryDate(dayjs(editFile.expiryDate));
@@ -815,6 +853,63 @@ const Uploader = ({
                                 {fileExtension}
                             </Typography>
                         </Box>
+                    </Box>
+
+                    {/* Replace file: swap in a new version (e.g. a renewed document) without
+                        losing this record, its associations, or alert settings. */}
+                    <Box sx={{ width: '100%', mt: 1.25 }}>
+                        {!fileReplaced ? (
+                            <>
+                                <Typography sx={sectionTitleSx}>Replace file (optional)</Typography>
+                                <Box sx={{ mt: 0.75 }}>
+                                    <FileDropzone
+                                        files={[]}
+                                        onChange={handleReplaceFile}
+                                        accept={ACCEPTED_FILE_ACCEPT}
+                                        multiple={false}
+                                    />
+                                </Box>
+                                <Typography variant="caption" sx={{ display: 'block', color: '#64748b', mt: 0.5, textAlign: 'center' }}>
+                                    Upload a new version to replace the current file. The document keeps its associations and alert settings — set the new expiry date below.
+                                </Typography>
+                            </>
+                        ) : (
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 1.5,
+                                    border: '1px solid #bfdbfe',
+                                    bgcolor: '#eff6ff',
+                                    borderRadius: '12px',
+                                    px: 1.75,
+                                    py: 1.25,
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                    <SwapHorizIcon sx={{ color: '#26477C', flexShrink: 0 }} fontSize="small" />
+                                    <Box sx={{ minWidth: 0 }}>
+                                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#26477C', lineHeight: 1.3 }}>
+                                            New file will replace the current one on save
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{ color: '#475569', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: { xs: 180, sm: 320 } }}
+                                        >
+                                            {uploadFiles[0]?.name || 'New file selected'}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Button
+                                    size="small"
+                                    onClick={handleUseOriginalFile}
+                                    sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0, color: '#334155' }}
+                                >
+                                    Use original
+                                </Button>
+                            </Box>
+                        )}
                     </Box>
                 </Box>
             )}
