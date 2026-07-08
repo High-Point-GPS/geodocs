@@ -35,6 +35,16 @@ const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDo
 const signedUrlCache = new Map(); // fileKey -> { url, ts }
 const SIGNED_URL_REUSE_MS = 8 * 60 * 1000;
 
+// Drop a file's cached signed URL(s) so the next preview re-fetches fresh bytes. Call after
+// the stored object is replaced/renamed/deleted — otherwise the id-keyed 8-min reuse window
+// would serve the OLD file (same-name overwrite) or a now-deleted path (rename/extension change).
+export const invalidatePreviewCache = (id, ...paths) => {
+	if (id != null) signedUrlCache.delete(`id:${id}`);
+	for (const p of paths) {
+		if (p) signedUrlCache.delete(`path:${p}`);
+	}
+};
+
 // Catches a failed lazy-chunk load (offline/network) or a PdfCanvas render error so it
 // degrades to a download prompt instead of blanking the add-in. Resets when the file changes.
 class PdfErrorBoundary extends React.Component {

@@ -25,7 +25,7 @@ import ExpiryCalendar from './components/ExpiryCalendar';
 import DocumentTable from './components/DocumentTabel';
 import EmailChipsInput, { splitEmails } from './components/EmailChipsInput';
 import FileActions from './components/FileActions';
-import FilePreview from './components/FilePreview';
+import FilePreview, { invalidatePreviewCache } from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
 import Spinner from './components/Spinner';
 
@@ -216,6 +216,11 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 		if (foundFileIndex === -1) return;
 
+		// The stored file may have been replaced/renamed (path changes) — evict any cached
+		// preview signed URL for this doc so the next open fetches the new bytes rather than
+		// reusing the 8-min-cached old URL (which would show the old file or 404 a deleted path).
+		invalidatePreviewCache(id, newFiles[foundFileIndex].path, updateDoc && updateDoc.path);
+
 		const normalized = { ...updateDoc };
 
 		if ('expiryDate' in normalized) {
@@ -319,6 +324,8 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 	
 	const handleFileDeleted = (id) => {
+		const removed = files.find((file) => file.id === id);
+		invalidatePreviewCache(id, removed && removed.path);
 		const newFiles = files.filter((file) => file.id !== id);
 		setFiles(newFiles);
 	};

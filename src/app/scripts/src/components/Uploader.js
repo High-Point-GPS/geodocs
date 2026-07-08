@@ -353,7 +353,10 @@ const Uploader = ({
         setUploadFiles([raw]);
         setFileReplaced(true);
         const dot = raw.name.lastIndexOf('.');
-        setFileExtension(dot > 0 ? raw.name.substring(dot) : '');
+        const newExt = dot > 0 ? raw.name.substring(dot) : '';
+        // Keep the document's original extension if the replacement has none (e.g. a
+        // drag-dropped file named "renewed") so we never silently strip ".pdf".
+        setFileExtension(newExt || originalExtRef.current || '');
     };
 
     // Undo a pending replacement — restore the originally-loaded file/extension (kept in refs,
@@ -451,11 +454,17 @@ const Uploader = ({
                 }
             );
 
-            const data = await response.json();
+            // Parse defensively: an oversized upload (413) or a platform error returns a
+            // non-JSON body, so response.json() would throw a cryptic "Unexpected token <".
+            const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
                 if (data.valid === false) {
                     onValidationError()
+                }
+
+                if (response.status === 413) {
+                    throw new Error('This file is too large to upload. Please choose a smaller file.');
                 }
 
                 const errorMessage = data.error || data.message || 'Edit failed';
