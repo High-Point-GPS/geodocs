@@ -42,10 +42,27 @@ export const formatOptions = (data) => {
 	});
 };
 
-export const matchGeotabData = (dataIds, dataKey, geotabData) => {
+// Display names are resolved against the FULL Geotab result, never against whatever
+// subset the pickers happen to offer: a document attached to a vehicle must render
+// that vehicle's name regardless of any selection rules. Geotab ids are unique across
+// types, so one flat id -> name map covers vehicles, trailers and drivers.
+export const buildNameIndex = (devices = [], drivers = []) => {
+	const nameIndex = {};
+	devices.forEach((d) => {
+		if (d && d.id && d.name) nameIndex[d.id] = `${d.name}`;
+	});
+	drivers.forEach((d) => {
+		if (d && d.id) nameIndex[d.id] = `${d.firstName} ${d.lastName}`;
+	});
+	return nameIndex;
+};
+
+export const matchGeotabData = (dataIds, dataKey, geotabData, nameIndex) => {
 	const matchedData = dataIds.map((id) => {
 		const data = geotabData[dataKey].find((d) => d.value === id);
-		return data ? data : { label: id, value: id };
+		if (data) return data;
+		const name = nameIndex && nameIndex[id];
+		return { label: name || id, value: id };
 })
 return matchedData;
 };

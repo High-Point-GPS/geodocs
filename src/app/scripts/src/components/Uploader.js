@@ -72,6 +72,7 @@ const Uploader = ({
     globalAlertEmail = '',
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
+    geotabNames = {},
 }) => {
     const [uploadFiles, setUploadFiles] = useState([]);
     const geotabData = geotabDataProp || { vehicles: [], drivers: [], trailers: [], groups: [] };
@@ -678,9 +679,9 @@ const Uploader = ({
       if (dataGroups.length === 0) {
         setUploadType('uploadSelection');
         setSelections({
-          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData)],
-          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData)],
-          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData)],
+          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabNames)],
+          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabNames)],
+          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabNames)],
           groups:   [...formatOptions(dataGroups)],
         });
       } else {
@@ -694,9 +695,9 @@ const Uploader = ({
       }
 
       setUploadData({
-        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData)],
-        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData)],
-        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData)],
+        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabNames)],
+        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabNames)],
+        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabNames)],
         groups:   [...formatOptions(dataGroups)],
       });
 

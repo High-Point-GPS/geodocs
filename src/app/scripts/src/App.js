@@ -29,7 +29,7 @@ import FilePreview, { invalidatePreviewCache } from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
 import Spinner from './components/Spinner';
 
-import { formatGeotabData, getFileTypeMeta, matchGeotabData } from './utils/formatter';
+import { buildNameIndex, formatGeotabData, getFileTypeMeta } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
@@ -138,6 +138,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
         trailers: [],
         groups: [],
     });
+    // id -> display name for every asset Geotab returned, kept separate from the picker
+    // lists above so name rendering never depends on how those lists are filtered.
+    const [geotabNames, setGeotabNames] = useState({});
     // True once the Geotab vehicle/driver/trailer/group lists have actually loaded, so
     // the owner-name sync doesn't run against the empty initial map (which would store IDs).
     const [geotabDataLoaded, setGeotabDataLoaded] = useState(false);
@@ -500,9 +503,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					server: server
 				};
 
-				let filteredDevices = results[0];
+				const allDevices = results[0];
 				const trailerNames = results[2].map((t) => t.id);
-				let activeTrailers = results[0].filter((res) => {
+				const activeTrailers = results[0].filter((res) => {
 					const isActive = new Date(res.activeTo) > new Date();
 					const isId = res.tmpTrailerId && trailerNames.findIndex((t) => t === res.tmpTrailerId) !== -1;
 					return isActive && isId;
@@ -512,45 +515,16 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				// skip the round trip entirely on every load thereafter (the backend would
 				// just no-op anyway). Only un-migrated databases pay for it, once.
 				if (!databaseConfig.updateFromLegacy) {
-					await updateLegacyData(filteredDevices, results[1], activeTrailers, sessionInfo);
+					await updateLegacyData(allDevices, results[1], activeTrailers, sessionInfo);
 				}
 
-				if (!databaseConfig.directBilling) {
-					api.call(
-						'Get',
-						{
-							typeName: 'AddInDeviceLink',
-							search: {
-								addInSearch: {
-									configuration: {
-										solutionId: 'highPointsGPSGeoDocs™',
-									},
-								},
-							},
-						credentials: {
-							database: database,
-							sessionId: session.sessionId,
-							userName: session.userName,
-						},
-						},
-						(result) => {
-							const marketDevices = result.map((x) => ({ ...x.device }));
-							filteredDevices = filteredDevices.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
-							activeTrailers = activeTrailers.filter((res) => marketDevices.findIndex((md) => md.serialNumber === res.serialNumber) !== -1);
-
-							const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
-							setGeotabData(formatedData);
-							setGeotabDataLoaded(true);
-						},
-						function (error) {
-							console.error('Error: Could not find AddIn Device Links.', error);
-						}
-					);
-				} else {
-					const formatedData = formatGeotabData(filteredDevices, results[1], activeTrailers, results[3]);
-					setGeotabData(formatedData);
-					setGeotabDataLoaded(true);
-				}
+				// Every active asset is selectable. GeoDocs deliberately does not gate the
+				// pickers on per-device Marketplace entitlement (AddInDeviceLink): that list
+				// is empty on plenty of live databases, which silently emptied the pickers,
+				// and Add-In Subscriptions is not a reliable self-service way back out.
+				setGeotabNames(buildNameIndex(allDevices, results[1]));
+				setGeotabData(formatGeotabData(allDevices, results[1], activeTrailers, results[3]));
+				setGeotabDataLoaded(true);
 			},
 			function (error) {
 				console.log(error);
@@ -590,16 +564,16 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		if (!files.length) return;
 		if (syncingNamesRef.current) return;
 
-		// Resolve a list of owner IDs to names. geotabData is a FILTERED subset (only
-		// add-in-linked / active / current assets), so an ID assigned to a now-deactivated
-		// or unlinked asset won't be found. In that case we keep the last-known-good name
-		// that was previously stored (never DOWNGRADE a real name back to a raw Geotab ID),
-		// falling back to the ID only when we have nothing better. Arrays stay positionally
-		// aligned with `owners`. Groups are already stored by name.
-		const resolveList = (ids, key, prior) =>
+		// Resolve a list of owner IDs to names against the full Geotab result, so an asset
+		// still resolves whether or not it is currently selectable. An ID assigned to a
+		// now-deactivated asset won't be found at all; there we keep the last-known-good
+		// name that was previously stored (never DOWNGRADE a real name back to a raw Geotab
+		// ID), falling back to the ID only when we have nothing better. Arrays stay
+		// positionally aligned with `owners`. Groups are already stored by name.
+		const resolveList = (ids, prior) =>
 			(ids || []).map((id, i) => {
-				const hit = geotabData[key].find((d) => d.value === id);
-				if (hit) return hit.label;                     // current Geotab name wins
+				const live = geotabNames[id];
+				if (live) return live;                         // current Geotab name wins
 				const prev = prior && prior[i];
 				if (prev != null && prev !== id) return prev;  // keep last-known-good name
 				return id;                                     // nothing better than the ID
@@ -609,9 +583,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			const o = file.owners || {};
 			const prior = file.ownerNames || {};
 			return {
-				vehicles: resolveList(o.vehicles, 'vehicles', prior.vehicles),
-				drivers: resolveList(o.drivers, 'drivers', prior.drivers),
-				trailers: resolveList(o.trailers, 'trailers', prior.trailers),
+				vehicles: resolveList(o.vehicles, prior.vehicles),
+				drivers: resolveList(o.drivers, prior.drivers),
+				trailers: resolveList(o.trailers, prior.trailers),
 				groups: [...(o.groups || [])],
 			};
 		};
@@ -670,7 +644,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			.finally(() => {
 				syncingNamesRef.current = false;
 			});
-	}, [files, geotabData, geotabDataLoaded]);
+	}, [files, geotabNames, geotabDataLoaded]);
 
 	useEffect(() => {
 		function updateSize() {
@@ -1001,13 +975,13 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					{mobile ? (
 						<DocumentMobile
 							files={tableFiles}
-							geotabData={geotabData}
+							geotabNames={geotabNames}
 							onOrderedFilesChange={setOrderedFiles}
 						/>
 					) : (
 						<DocumentTable
 							files={tableFiles}
-							geotabData={geotabData}
+							geotabNames={geotabNames}
 							globalAlertEmail={databaseConfig?.alertEmail || ''}
 							onOrderedFilesChange={setOrderedFiles}
 						/>
@@ -1096,6 +1070,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
+						geotabNames={geotabNames}
 					/>
 				</DialogContent>
 			</Dialog>
@@ -1141,6 +1116,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					onClose={() => setCalendarOpen(false)}
 					files={files}
 					geotabData={geotabData}
+					geotabNames={geotabNames}
 					mobile={mobile}
 					onEditFile={(file) => {
 						setCalendarOpen(false);

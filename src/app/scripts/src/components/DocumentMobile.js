@@ -18,7 +18,7 @@ import { collapseCompanyGroup } from '../utils/formatter';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
-const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
+const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [filterFiles, setFilterFiles] = useState([]);
@@ -39,10 +39,14 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
         if (onOrderedFilesChange) onOrderedFilesChange(filterFiles);
     }, [filterFiles, onOrderedFilesChange]);
 
-    const formatData = (dataIds, dataKey) => {
-        return dataIds.map(id => {
-            const data = geotabData[dataKey].find(d => d.value === id);
-            return data ? data.label : id;
+    // Live Geotab name first (from the full device/driver result, never a picker's option
+    // list), then the name stored with the file, then the raw entry.
+    const formatData = (dataIds, priorNames) => {
+        return dataIds.map((id, i) => {
+            const live = geotabNames && geotabNames[id];
+            if (live) return live;
+            const saved = Array.isArray(priorNames) ? priorNames[i] : undefined;
+            return saved != null && saved !== '' ? saved : id;
         });
     }
 
@@ -83,6 +87,7 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
                 {filterFiles.map((file) => {
                     // Mobile consumes the raw (un-normalized) file list, so guard owners here.
                     const owners = file.owners || {};
+                    const ownerNames = file.ownerNames || {};
                     const groups = collapseCompanyGroup(Array.isArray(owners.groups) ? owners.groups : []);
                     const drivers = Array.isArray(owners.drivers) ? owners.drivers : [];
                     const vehicles = Array.isArray(owners.vehicles) ? owners.vehicles : [];
@@ -142,7 +147,7 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
                                             Drivers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(drivers, 'drivers').join(', ')}
+                                            {formatData(drivers, ownerNames.drivers).join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
@@ -152,7 +157,7 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
                                             Vehicles
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(vehicles, 'vehicles').join(', ')}
+                                            {formatData(vehicles, ownerNames.vehicles).join(', ')}
                                         </Typography>
                                     </Box>
                                 )}
@@ -162,7 +167,7 @@ const DocumentMobile = ({ files, geotabData, onOrderedFilesChange }) => {
                                             Trailers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(trailers, 'trailers').join(', ')}
+                                            {formatData(trailers, ownerNames.trailers).join(', ')}
                                         </Typography>
                                     </Box>
                                 )}

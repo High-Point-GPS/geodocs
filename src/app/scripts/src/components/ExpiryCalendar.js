@@ -110,7 +110,7 @@ const DayWithBadge = (props) => {
     );
 };
 
-const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUploadClick, mobile }) => {
+const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabNames, onEditFile, onUploadClick, mobile }) => {
     // Follow the app's own mobile switch (App.js: window.innerWidth < 1200) so the
     // calendar goes full screen exactly when the rest of the UI does.
     const fullScreen = !!mobile;
@@ -148,13 +148,13 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
         });
     }, [geotabData]);
 
-    // Live Geotab name wins; otherwise the file's saved display name (geotabData is a
-    // filtered subset, so unlinked/deactivated assets miss); the raw entry is last
-    // (it IS the label on legacy documents that stored names instead of ids).
-    const ownerLabel = (kind, id, savedName) => {
-        const list = Array.isArray(geotabData?.[kind]) ? geotabData[kind] : [];
-        const match = list.find((o) => o.value === id);
-        if (match) return match.label;
+    // Live Geotab name wins — resolved from the full device/driver result rather than the
+    // filter list above, so naming never depends on what happens to be selectable.
+    // Otherwise the file's saved display name (deactivated assets miss); the raw entry is
+    // last (it IS the label on legacy documents that stored names instead of ids).
+    const ownerLabel = (id, savedName) => {
+        const live = geotabNames?.[id];
+        if (live) return live;
         if (savedName != null && savedName !== '') return savedName;
         return id;
     };
@@ -423,7 +423,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, onEditFile, onUpload
                                                     // ownerNames is positionally aligned with owners (App.js contract)
                                                     names: Array.isArray(file.owners?.[kind])
                                                         ? file.owners[kind].map((id, i) =>
-                                                              ownerLabel(kind, id, file.ownerNames?.[kind]?.[i])
+                                                              ownerLabel(id, file.ownerNames?.[kind]?.[i])
                                                           )
                                                         : [],
                                                 }))
