@@ -503,27 +503,37 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					server: server
 				};
 
-				const allDevices = results[0];
+				// The `fromDate` searches above should already exclude deactivated assets, but
+				// the pickers don't lean on that alone. Only hide what we can positively show
+				// is retired: no activeTo means "no end date", and an unparseable one is not
+				// evidence of anything — either way the asset stays.
+				const isActive = (asset) => {
+					if (!asset || !asset.activeTo) return true;
+					const activeTo = new Date(asset.activeTo);
+					return isNaN(activeTo.getTime()) ? true : activeTo > new Date();
+				};
+
+				const activeDevices = results[0].filter(isActive);
+				const activeDrivers = results[1].filter(isActive);
 				const trailerNames = results[2].map((t) => t.id);
-				const activeTrailers = results[0].filter((res) => {
-					const isActive = new Date(res.activeTo) > new Date();
-					const isId = res.tmpTrailerId && trailerNames.findIndex((t) => t === res.tmpTrailerId) !== -1;
-					return isActive && isId;
-				});
+				// Devices linked to a Trailer record list under Trailers instead of Vehicles.
+				const activeTrailers = activeDevices.filter(
+					(res) => res.tmpTrailerId && trailerNames.findIndex((t) => t === res.tmpTrailerId) !== -1
+				);
 
 				// The one-time ID migration sets config.updateFromLegacy once it has run;
 				// skip the round trip entirely on every load thereafter (the backend would
 				// just no-op anyway). Only un-migrated databases pay for it, once.
 				if (!databaseConfig.updateFromLegacy) {
-					await updateLegacyData(allDevices, results[1], activeTrailers, sessionInfo);
+					await updateLegacyData(activeDevices, activeDrivers, activeTrailers, sessionInfo);
 				}
 
 				// Every active asset is selectable. GeoDocs deliberately does not gate the
 				// pickers on per-device Marketplace entitlement (AddInDeviceLink): that list
 				// is empty on plenty of live databases, which silently emptied the pickers,
 				// and Add-In Subscriptions is not a reliable self-service way back out.
-				setGeotabNames(buildNameIndex(allDevices, results[1]));
-				setGeotabData(formatGeotabData(allDevices, results[1], activeTrailers, results[3]));
+				setGeotabNames(buildNameIndex(activeDevices, activeDrivers));
+				setGeotabData(formatGeotabData(activeDevices, activeDrivers, activeTrailers, results[3]));
 				setGeotabDataLoaded(true);
 			},
 			function (error) {
