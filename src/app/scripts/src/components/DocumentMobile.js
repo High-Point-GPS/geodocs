@@ -14,11 +14,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { generateCSV } from '../utils/csv-generator';
-import { collapseCompanyGroup } from '../utils/formatter';
+import { collapseCompanyGroup, ownerDisplay, resolveOwner } from '../utils/formatter';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 
-const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
+const DocumentMobile = ({ files, geotabAssets, onOrderedFilesChange }) => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [filterFiles, setFilterFiles] = useState([]);
@@ -39,16 +39,30 @@ const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
         if (onOrderedFilesChange) onOrderedFilesChange(filterFiles);
     }, [filterFiles, onOrderedFilesChange]);
 
-    // Live Geotab name first (from the full device/driver result, never a picker's option
-    // list), then the name stored with the file, then the raw entry.
-    const formatData = (dataIds, priorNames) => {
-        return dataIds.map((id, i) => {
-            const live = geotabNames && geotabNames[id];
-            if (live) return live;
-            const saved = Array.isArray(priorNames) ? priorNames[i] : undefined;
-            return saved != null && saved !== '' ? saved : id;
-        });
-    }
+    // Names resolve from the full device/driver result, never a picker's option list.
+    // Assets Geotab no longer lists render greyed and tagged "(Archived …)".
+    const OwnerList = ({ dataIds, priorNames, dataKey }) => (
+        <>
+            {dataIds.map((id, i) => {
+                const resolved = resolveOwner(
+                    id,
+                    Array.isArray(priorNames) ? priorNames[i] : undefined,
+                    geotabAssets
+                );
+                return (
+                    <React.Fragment key={`${id}-${i}`}>
+                        {i > 0 ? ', ' : ''}
+                        <Box
+                            component="span"
+                            sx={resolved.archived ? { color: '#94a3b8', fontStyle: 'italic' } : undefined}
+                        >
+                            {ownerDisplay(resolved, dataKey)}
+                        </Box>
+                    </React.Fragment>
+                );
+            })}
+        </>
+    );
 
     return (
         <Box
@@ -147,7 +161,7 @@ const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
                                             Drivers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(drivers, ownerNames.drivers).join(', ')}
+                                            <OwnerList dataIds={drivers} priorNames={ownerNames.drivers} dataKey="drivers" />
                                         </Typography>
                                     </Box>
                                 )}
@@ -157,7 +171,7 @@ const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
                                             Vehicles
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(vehicles, ownerNames.vehicles).join(', ')}
+                                            <OwnerList dataIds={vehicles} priorNames={ownerNames.vehicles} dataKey="vehicles" />
                                         </Typography>
                                     </Box>
                                 )}
@@ -167,7 +181,7 @@ const DocumentMobile = ({ files, geotabNames, onOrderedFilesChange }) => {
                                             Trailers
                                         </Typography>
                                         <Typography variant="body1">
-                                            {formatData(trailers, ownerNames.trailers).join(', ')}
+                                            <OwnerList dataIds={trailers} priorNames={ownerNames.trailers} dataKey="trailers" />
                                         </Typography>
                                     </Box>
                                 )}

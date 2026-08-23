@@ -14,7 +14,7 @@ import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import dayjs from 'dayjs';
 
-import { getFileTypeMeta } from './formatter';
+import { archivedLabel, getFileTypeMeta } from './formatter';
 import FlatbedTrailerIcon from '../components/FlatbedTrailerIcon';
 
 const columnHelper = createColumnHelper();
@@ -112,13 +112,17 @@ const FileNameCell = ({ name, hideFromDriver }) => {
     );
 };
 
-const ListCell = ({ value, icon: Icon }) => {
+// `archived` is positionally aligned with `value`: an entry whose asset Geotab no longer
+// lists is greyed and tagged, so a document attached to a retired vehicle still reads as
+// that vehicle rather than looking like a live association.
+const ListCell = ({ value, archived, icon: Icon, dataKey }) => {
     // Empty -> just a muted dash, no icon.
     if (!Array.isArray(value) || value.length === 0) {
         return <Typography sx={{ color: '#cbd5e1' }}>—</Typography>;
     }
-    const shown = value.slice(0, 5).join(', ');
-    const content = `${shown}${value.length > 5 ? '…' : ''}`;
+    const isArchived = (i) => Array.isArray(archived) && !!archived[i];
+    const withMarker = (v, i) => (isArchived(i) ? `${v} (${archivedLabel(dataKey)})` : String(v));
+    const shown = value.slice(0, 5);
     // Cap the cell width so a row with many (or long-named) owners can't stretch its
     // column. The table sits in an auto-layout container, so an uncapped nowrap cell
     // would size the whole column to its widest row, push the table past the viewport,
@@ -135,12 +139,23 @@ const ListCell = ({ value, icon: Icon }) => {
                     whiteSpace: 'nowrap',
                 }}
             >
-                {content}
+                {shown.map((v, i) => (
+                    <React.Fragment key={i}>
+                        {i > 0 ? ', ' : ''}
+                        <Box
+                            component="span"
+                            sx={isArchived(i) ? { color: '#94a3b8', fontStyle: 'italic' } : undefined}
+                        >
+                            {withMarker(v, i)}
+                        </Box>
+                    </React.Fragment>
+                ))}
+                {value.length > 5 ? '…' : ''}
             </Typography>
         </Box>
     );
     return (
-        <Tooltip title={value.join(', ')} arrow>
+        <Tooltip title={value.map(withMarker).join(', ')} arrow>
             {inner}
         </Tooltip>
     );
@@ -240,19 +255,40 @@ export const columns = [
     }),
     columnHelper.accessor('owners.vehicles', {
         header: () => 'Vehicles',
-        cell: (info) => <ListCell value={info.renderValue()} icon={DirectionsCarOutlinedIcon} />,
+        cell: (info) => (
+            <ListCell
+                value={info.renderValue()}
+                archived={info.row.original.archivedOwners?.vehicles}
+                dataKey="vehicles"
+                icon={DirectionsCarOutlinedIcon}
+            />
+        ),
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),
     columnHelper.accessor('owners.drivers', {
         header: () => 'Drivers',
-        cell: (info) => <ListCell value={info.renderValue()} icon={PersonOutlinedIcon} />,
+        cell: (info) => (
+            <ListCell
+                value={info.renderValue()}
+                archived={info.row.original.archivedOwners?.drivers}
+                dataKey="drivers"
+                icon={PersonOutlinedIcon}
+            />
+        ),
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),
     columnHelper.accessor('owners.trailers', {
         header: () => 'Trailers',
-        cell: (info) => <ListCell value={info.renderValue()} icon={FlatbedTrailerIcon} />,
+        cell: (info) => (
+            <ListCell
+                value={info.renderValue()}
+                archived={info.row.original.archivedOwners?.trailers}
+                dataKey="trailers"
+                icon={FlatbedTrailerIcon}
+            />
+        ),
         filterFn: 'fuzzy',
         sortingFn: ownersSort,
     }),

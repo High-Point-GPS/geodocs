@@ -29,7 +29,7 @@ import FilePreview, { invalidatePreviewCache } from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
 import Spinner from './components/Spinner';
 
-import { buildNameIndex, formatGeotabData, getFileTypeMeta } from './utils/formatter';
+import { buildAssetIndex, formatGeotabData, getFileTypeMeta, isActiveAsset } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
@@ -138,9 +138,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
         trailers: [],
         groups: [],
     });
-    // id -> display name for every asset Geotab returned, kept separate from the picker
-    // lists above so name rendering never depends on how those lists are filtered.
-    const [geotabNames, setGeotabNames] = useState({});
+    // id -> { label, archived } for every asset Geotab returned, kept separate from the
+    // picker lists above so name rendering never depends on how those lists are filtered.
+    const [geotabAssets, setGeotabAssets] = useState({});
     // True once the Geotab vehicle/driver/trailer/group lists have actually loaded, so
     // the owner-name sync doesn't run against the empty initial map (which would store IDs).
     const [geotabDataLoaded, setGeotabDataLoaded] = useState(false);
@@ -504,17 +504,10 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				};
 
 				// The `fromDate` searches above should already exclude deactivated assets, but
-				// the pickers don't lean on that alone. Only hide what we can positively show
-				// is retired: no activeTo means "no end date", and an unparseable one is not
-				// evidence of anything — either way the asset stays.
-				const isActive = (asset) => {
-					if (!asset || !asset.activeTo) return true;
-					const activeTo = new Date(asset.activeTo);
-					return isNaN(activeTo.getTime()) ? true : activeTo > new Date();
-				};
-
-				const activeDevices = results[0].filter(isActive);
-				const activeDrivers = results[1].filter(isActive);
+				// the pickers don't lean on that alone (see isActiveAsset for what "active"
+				// means when activeTo is missing or unparseable).
+				const activeDevices = results[0].filter(isActiveAsset);
+				const activeDrivers = results[1].filter(isActiveAsset);
 				const trailerNames = results[2].map((t) => t.id);
 				// Devices linked to a Trailer record list under Trailers instead of Vehicles.
 				const activeTrailers = activeDevices.filter(
@@ -532,7 +525,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				// pickers on per-device Marketplace entitlement (AddInDeviceLink): that list
 				// is empty on plenty of live databases, which silently emptied the pickers,
 				// and Add-In Subscriptions is not a reliable self-service way back out.
-				setGeotabNames(buildNameIndex(activeDevices, activeDrivers));
+				// Pickers offer active assets only; the index keeps the archived ones too, so
+				// documents already attached to one still render its name, marked archived.
+				setGeotabAssets(buildAssetIndex(results[0], results[1]));
 				setGeotabData(formatGeotabData(activeDevices, activeDrivers, activeTrailers, results[3]));
 				setGeotabDataLoaded(true);
 			},
@@ -575,15 +570,17 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		if (syncingNamesRef.current) return;
 
 		// Resolve a list of owner IDs to names against the full Geotab result, so an asset
-		// still resolves whether or not it is currently selectable. An ID assigned to a
-		// now-deactivated asset won't be found at all; there we keep the last-known-good
-		// name that was previously stored (never DOWNGRADE a real name back to a raw Geotab
-		// ID), falling back to the ID only when we have nothing better. Arrays stay
-		// positionally aligned with `owners`. Groups are already stored by name.
+		// still resolves whether or not it is currently selectable — archived ones included.
+		// An ID Geotab no longer returns at all won't be found; there we keep the
+		// last-known-good name that was previously stored (never DOWNGRADE a real name back
+		// to a raw Geotab ID), falling back to the ID only when we have nothing better.
+		// Names are stored plain: the "(Archived …)" marker is applied at render time, so it
+		// never gets written into a file's ownerNames. Arrays stay positionally aligned with
+		// `owners`. Groups are already stored by name.
 		const resolveList = (ids, prior) =>
 			(ids || []).map((id, i) => {
-				const live = geotabNames[id];
-				if (live) return live;                         // current Geotab name wins
+				const live = geotabAssets[id];
+				if (live) return live.label;                   // current Geotab name wins
 				const prev = prior && prior[i];
 				if (prev != null && prev !== id) return prev;  // keep last-known-good name
 				return id;                                     // nothing better than the ID
@@ -654,7 +651,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			.finally(() => {
 				syncingNamesRef.current = false;
 			});
-	}, [files, geotabNames, geotabDataLoaded]);
+	}, [files, geotabAssets, geotabDataLoaded]);
 
 	useEffect(() => {
 		function updateSize() {
@@ -985,13 +982,13 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					{mobile ? (
 						<DocumentMobile
 							files={tableFiles}
-							geotabNames={geotabNames}
+							geotabAssets={geotabAssets}
 							onOrderedFilesChange={setOrderedFiles}
 						/>
 					) : (
 						<DocumentTable
 							files={tableFiles}
-							geotabNames={geotabNames}
+							geotabAssets={geotabAssets}
 							globalAlertEmail={databaseConfig?.alertEmail || ''}
 							onOrderedFilesChange={setOrderedFiles}
 						/>
@@ -1080,7 +1077,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
-						geotabNames={geotabNames}
+						geotabAssets={geotabAssets}
 					/>
 				</DialogContent>
 			</Dialog>
@@ -1126,7 +1123,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 					onClose={() => setCalendarOpen(false)}
 					files={files}
 					geotabData={geotabData}
-					geotabNames={geotabNames}
+					geotabAssets={geotabAssets}
 					mobile={mobile}
 					onEditFile={(file) => {
 						setCalendarOpen(false);

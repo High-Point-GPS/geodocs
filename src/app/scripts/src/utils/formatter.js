@@ -42,27 +42,72 @@ export const formatOptions = (data) => {
 	});
 };
 
-// Display names are resolved against the FULL Geotab result, never against whatever
-// subset the pickers happen to offer: a document attached to a vehicle must render
-// that vehicle's name regardless of any selection rules. Geotab ids are unique across
-// types, so one flat id -> name map covers vehicles, trailers and drivers.
-export const buildNameIndex = (devices = [], drivers = []) => {
-	const nameIndex = {};
-	devices.forEach((d) => {
-		if (d && d.id && d.name) nameIndex[d.id] = `${d.name}`;
-	});
-	drivers.forEach((d) => {
-		if (d && d.id) nameIndex[d.id] = `${d.firstName} ${d.lastName}`;
-	});
-	return nameIndex;
+// An asset counts as active unless Geotab positively says otherwise: a missing activeTo
+// means "no end date", and an unparseable one is not evidence of anything. Only a date in
+// the past retires it. (A bare `new Date(activeTo) > new Date()` is false for undefined,
+// which would silently hide every asset lacking the field.)
+export const isActiveAsset = (asset) => {
+	if (!asset || !asset.activeTo) return true;
+	const activeTo = new Date(asset.activeTo);
+	return isNaN(activeTo.getTime()) ? true : activeTo > new Date();
 };
 
-export const matchGeotabData = (dataIds, dataKey, geotabData, nameIndex) => {
+// id -> { label, archived } for every asset Geotab returned, active or not — the pickers
+// take the active subset, but display names are resolved from ALL of it, so a document
+// attached to a since-archived asset still shows that asset's name instead of a raw id.
+// Geotab ids are unique across types, so one flat map covers vehicles, trailers, drivers.
+export const buildAssetIndex = (devices = [], drivers = []) => {
+	const assetIndex = {};
+	devices.forEach((d) => {
+		if (d && d.id && d.name) assetIndex[d.id] = { label: `${d.name}`, archived: !isActiveAsset(d) };
+	});
+	drivers.forEach((d) => {
+		if (d && d.id) assetIndex[d.id] = { label: `${d.firstName} ${d.lastName}`, archived: !isActiveAsset(d) };
+	});
+	return assetIndex;
+};
+
+// Geotab entity ids are a type letter plus an opaque token — devices and trailers "b…",
+// users "u…" — never anything with a space. Used only to tell an id apart from a display
+// name on documents that predate the id migration.
+const GEOTAB_ID_SHAPE = /^[bu][0-9A-Za-z]{1,15}$/;
+
+// What one stored owner entry should render as, and whether to mark it archived.
+//   - live asset            -> its current Geotab name
+//   - archived, still returned -> its name, flagged
+//   - no longer returned at all (the usual case: the fromDate search omits archived
+//     assets) -> the name stored on the file, flagged when we can tell it really was an
+//     asset: either the stored name differs from the raw entry, or the entry is id-shaped
+//   - legacy document that stored a display name instead of an id -> itself, unflagged,
+//     since a plain name is no evidence that anything was archived
+export const resolveOwner = (entry, savedName, assetIndex) => {
+	const hit = assetIndex && assetIndex[entry];
+	if (hit) return { label: hit.label, archived: !!hit.archived };
+	const saved = savedName != null && savedName !== '' ? String(savedName) : null;
+	const raw = String(entry);
+	const archived = (saved !== null && saved !== raw) || GEOTAB_ID_SHAPE.test(raw);
+	return { label: saved || raw, archived };
+};
+
+// The noun each column uses for its own assets, so the marker reads in the column's terms.
+const ARCHIVED_NOUN = { vehicles: 'device', trailers: 'trailer', drivers: 'driver' };
+
+export const archivedLabel = (dataKey) => `Archived ${ARCHIVED_NOUN[dataKey] || 'asset'}`;
+
+// Display form of one resolved owner: "Truck 101 (Archived device)" when archived.
+export const ownerDisplay = (resolved, dataKey) =>
+	resolved.archived ? `${resolved.label} (${archivedLabel(dataKey)})` : resolved.label;
+
+// Rehydrates saved owner ids into picker selections. Archived assets are no longer in the
+// options, so they resolve through the asset index instead and carry an `archived` flag —
+// the flag drives how the chip renders. The label itself stays clean: the uploader stores
+// selection labels as the file's ownerNames, and a marker baked in there would persist.
+export const matchGeotabData = (dataIds, dataKey, geotabData, assetIndex) => {
 	const matchedData = dataIds.map((id) => {
 		const data = geotabData[dataKey].find((d) => d.value === id);
 		if (data) return data;
-		const name = nameIndex && nameIndex[id];
-		return { label: name || id, value: id };
+		const resolved = resolveOwner(id, null, assetIndex);
+		return { label: resolved.label, value: id, archived: resolved.archived };
 })
 return matchedData;
 };

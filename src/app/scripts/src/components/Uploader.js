@@ -72,7 +72,7 @@ const Uploader = ({
     globalAlertEmail = '',
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
-    geotabNames = {},
+    geotabAssets = {},
 }) => {
     const [uploadFiles, setUploadFiles] = useState([]);
     const geotabData = geotabDataProp || { vehicles: [], drivers: [], trailers: [], groups: [] };
@@ -679,9 +679,9 @@ const Uploader = ({
       if (dataGroups.length === 0) {
         setUploadType('uploadSelection');
         setSelections({
-          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabNames)],
-          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabNames)],
-          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabNames)],
+          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabAssets)],
+          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabAssets)],
+          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabAssets)],
           groups:   [...formatOptions(dataGroups)],
         });
       } else {
@@ -695,9 +695,9 @@ const Uploader = ({
       }
 
       setUploadData({
-        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabNames)],
-        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabNames)],
-        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabNames)],
+        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabAssets)],
+        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabAssets)],
+        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabAssets)],
         groups:   [...formatOptions(dataGroups)],
       });
 
@@ -1023,6 +1023,7 @@ const Uploader = ({
                         <AssociateSelect
                             options={geotabData.vehicles}
                             label="Vehicle"
+                            dataKey="vehicles"
                             currentSelections={selections.vehicles}
                             onUpdateCurrentSelections={(selected) => {
                                 handleUpdateCurrentSelections(selected, 'vehicles');
@@ -1034,6 +1035,7 @@ const Uploader = ({
                         <AssociateSelect
                             options={geotabData.drivers}
                             label="Driver"
+                            dataKey="drivers"
                             currentSelections={selections.drivers}
                             onUpdateCurrentSelections={(selected) => {
                                 handleUpdateCurrentSelections(selected, 'drivers');
@@ -1045,6 +1047,7 @@ const Uploader = ({
                         <AssociateSelect
                             options={geotabData.trailers}
                             label="Trailer"
+                            dataKey="trailers"
                             currentSelections={selections.trailers}
                             onUpdateCurrentSelections={(selected) => {
                                 handleUpdateCurrentSelections(selected, 'trailers');

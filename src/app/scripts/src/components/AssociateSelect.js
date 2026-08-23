@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
-import { Box, Autocomplete, TextField } from '@mui/material';
+import { Box, Autocomplete, Chip, TextField } from '@mui/material';
+
+import { archivedLabel } from '../utils/formatter';
 
 const AssociateSelect = ({
 	options,
@@ -11,6 +13,7 @@ const AssociateSelect = ({
 	isDisabled,
 	isGroup = false,
 	selectWidth = '100%',
+	dataKey,
 }) => {
 	const [currentOptions, setCurrentOptions] = useState([]);
 
@@ -82,6 +85,23 @@ const AssociateSelect = ({
 				value={currentSelections}
 				getOptionLabel={(option) => option.label}
 				filterSelectedOptions
+				// A selection whose asset Geotab no longer lists (archived) is greyed and
+				// tagged. The tag is display-only: option.label stays the plain name because
+				// the uploader stores selection labels as the file's ownerNames.
+				renderTags={(value, getTagProps) =>
+					value.map((option, index) => {
+						const { key, ...tagProps } = getTagProps({ index });
+						return (
+							<Chip
+								key={key ?? option.value ?? index}
+								{...tagProps}
+								size="small"
+								label={option.archived ? `${option.label} (${archivedLabel(dataKey)})` : option.label}
+								sx={option.archived ? { color: '#94a3b8', fontStyle: 'italic', bgcolor: '#f8fafc' } : undefined}
+							/>
+						);
+					})
+				}
 				renderInput={(params) => <TextField {...params} label={`${label}s`} />}
 				onChange={(event, newValue) => {
 					handleUpdateSelections(newValue);

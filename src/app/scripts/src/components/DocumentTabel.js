@@ -48,7 +48,7 @@ import {
 } from '@tanstack/react-table';
 
 import { columns, stringMatchFilter, globalStringFilter } from '../utils/tabel-helper';
-import { collapseCompanyGroup } from '../utils/formatter';
+import { collapseCompanyGroup, resolveOwner } from '../utils/formatter';
 
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
@@ -85,42 +85,51 @@ const buildPages = (current, count) => {
     return pages;
 };
 
-const DocumentTable = ({ files, geotabNames, globalAlertEmail, onOrderedFilesChange }) => {
+const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesChange }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
     const [showExpiredOnly, setShowExpiredOnly] = useState(false);
 
-    // Live Geotab name first (resolved from the full device/driver result, never from a
-    // picker's option list), then the name stored with the file — which covers assets
-    // that have since been deactivated — then the raw entry, which IS the label on
-    // legacy documents that stored names instead of ids.
-    const formatData = (dataIds, priorNames) => {
-        if (!Array.isArray(dataIds)) return dataIds || [];
-        return dataIds.map((id, i) => {
-            const live = geotabNames && geotabNames[id];
-            if (live) return live;
-            const saved = Array.isArray(priorNames) ? priorNames[i] : undefined;
-            if (saved != null && saved !== '') return saved;
-            return id;
-        });
+    // Owner columns carry the display NAMES, so filtering, sorting, suggestions and the
+    // CSV export all work on what the user sees. Whether each entry is archived rides
+    // alongside in `archivedOwners`, positionally aligned, and is applied by the cell
+    // renderer — keeping the marker out of the values that get searched and exported.
+    const formatData = (dataIds, priorNames, dataKey) => {
+        if (!Array.isArray(dataIds)) return { labels: dataIds || [], archived: [] };
+        const resolved = dataIds.map((id, i) =>
+            resolveOwner(id, Array.isArray(priorNames) ? priorNames[i] : undefined, geotabAssets)
+        );
+        return {
+            labels: resolved.map((r) => r.label),
+            archived: resolved.map((r) => r.archived),
+            dataKey,
+        };
     };
 
     const displayFiles = useMemo(() => {
         return files.map((file) => {
             const owners = file.owners || {};
             const names = file.ownerNames || {};
+            const drivers = formatData(owners.drivers, names.drivers, 'drivers');
+            const vehicles = formatData(owners.vehicles, names.vehicles, 'vehicles');
+            const trailers = formatData(owners.trailers, names.trailers, 'trailers');
             return {
                 ...file,
                 owners: {
                     ...owners,
-                    drivers: Array.isArray(owners.drivers) ? formatData(owners.drivers, names.drivers) : owners.drivers || [],
-                    vehicles: Array.isArray(owners.vehicles) ? formatData(owners.vehicles, names.vehicles) : owners.vehicles || [],
-                    trailers: Array.isArray(owners.trailers) ? formatData(owners.trailers, names.trailers) : owners.trailers || [],
+                    drivers: drivers.labels,
+                    vehicles: vehicles.labels,
+                    trailers: trailers.labels,
                     groups: collapseCompanyGroup(Array.isArray(owners.groups) ? owners.groups : []),
+                },
+                archivedOwners: {
+                    drivers: drivers.archived,
+                    vehicles: vehicles.archived,
+                    trailers: trailers.archived,
                 },
             };
         });
-    }, [files, geotabNames]);
+    }, [files, geotabAssets]);
 
     // "Show Expired" filter: narrow to documents whose expiry date is in the past.
     const tableData = useMemo(() => {

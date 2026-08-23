@@ -13,6 +13,8 @@ import {
 } from '@mui/material';
 import dayjs from 'dayjs';
 
+import { ownerDisplay, resolveOwner } from '../utils/formatter';
+
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
@@ -110,7 +112,7 @@ const DayWithBadge = (props) => {
     );
 };
 
-const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabNames, onEditFile, onUploadClick, mobile }) => {
+const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabAssets, onEditFile, onUploadClick, mobile }) => {
     // Follow the app's own mobile switch (App.js: window.innerWidth < 1200) so the
     // calendar goes full screen exactly when the rest of the UI does.
     const fullScreen = !!mobile;
@@ -148,15 +150,13 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabNames, onEditF
         });
     }, [geotabData]);
 
-    // Live Geotab name wins — resolved from the full device/driver result rather than the
-    // filter list above, so naming never depends on what happens to be selectable.
-    // Otherwise the file's saved display name (deactivated assets miss); the raw entry is
-    // last (it IS the label on legacy documents that stored names instead of ids).
-    const ownerLabel = (id, savedName) => {
-        const live = geotabNames?.[id];
-        if (live) return live;
-        if (savedName != null && savedName !== '') return savedName;
-        return id;
+    // Names resolve from the full device/driver result rather than the filter list above,
+    // so naming never depends on what happens to be selectable. Assets Geotab no longer
+    // lists keep their name and get tagged "(Archived …)"; legacy documents that stored a
+    // display name instead of an id render as-is.
+    const ownerEntry = (id, savedName, kind) => {
+        const resolved = resolveOwner(id, savedName, geotabAssets);
+        return { text: ownerDisplay(resolved, kind), archived: resolved.archived };
     };
 
     // Only documents with a parseable expiry date can be placed on the calendar,
@@ -423,7 +423,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabNames, onEditF
                                                     // ownerNames is positionally aligned with owners (App.js contract)
                                                     names: Array.isArray(file.owners?.[kind])
                                                         ? file.owners[kind].map((id, i) =>
-                                                              ownerLabel(id, file.ownerNames?.[kind]?.[i])
+                                                              ownerEntry(id, file.ownerNames?.[kind]?.[i], kind)
                                                           )
                                                         : [],
                                                 }))
@@ -471,7 +471,17 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabNames, onEditF
                                                                             textOverflow: 'ellipsis',
                                                                         }}
                                                                     >
-                                                                        {names.join(', ')}
+                                                                        {names.map((n, i) => (
+                                                                            <React.Fragment key={`${n.text}-${i}`}>
+                                                                                {i > 0 ? ', ' : ''}
+                                                                                <Box
+                                                                                    component="span"
+                                                                                    sx={n.archived ? { color: '#94a3b8', fontStyle: 'italic' } : undefined}
+                                                                                >
+                                                                                    {n.text}
+                                                                                </Box>
+                                                                            </React.Fragment>
+                                                                        ))}
                                                                     </Typography>
                                                                 </Box>
                                                             );
