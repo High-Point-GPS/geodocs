@@ -54,6 +54,7 @@ import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
 import dayjs from 'dayjs';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
+import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 
 // Resolve a column's header to its plain text label (header defs are functions returning strings).
 const getHeaderLabel = (header) => {
@@ -66,6 +67,7 @@ const getHeaderLabel = (header) => {
 // e.g. "owners.groups" -> "owners_groups", so id-based keys miss the owner columns).
 const columnIcons = {
     File: ArticleOutlinedIcon,
+    Type: LabelOutlinedIcon,
     Groups: GroupsOutlinedIcon,
     Vehicles: DirectionsCarOutlinedIcon,
     Drivers: PersonOutlinedIcon,
@@ -143,7 +145,7 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
     // Keyed by display label (not column id) to match how columns are addressed elsewhere
     // (react-table mangles dotted accessor ids, e.g. "owners.groups" -> "owners_groups").
     const columnSuggestions = useMemo(() => {
-        const sets = { File: new Set(), Groups: new Set(), Vehicles: new Set(), Drivers: new Set(), Trailers: new Set() };
+        const sets = { File: new Set(), Type: new Set(), Groups: new Set(), Vehicles: new Set(), Drivers: new Set(), Trailers: new Set() };
         const ownerKinds = { groups: 'Groups', vehicles: 'Vehicles', drivers: 'Drivers', trailers: 'Trailers' };
         const add = (set, v) => {
             const label = String(v ?? '').trim();
@@ -151,13 +153,16 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
         };
         tableData.forEach((f) => {
             add(sets.File, f.fileName);
+            add(sets.Type, f.documentType);
+            // Driver names are searchable in this column too (see typeFilter).
+            add(sets.Type, f.uploadedBy?.driverName || f.uploadedBy?.userName);
             Object.keys(ownerKinds).forEach((k) => {
                 const list = Array.isArray(f.owners?.[k]) ? f.owners[k] : [];
                 list.forEach((n) => add(sets[ownerKinds[k]], n));
             });
         });
         const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b));
-        return { File: sorted(sets.File), Groups: sorted(sets.Groups), Vehicles: sorted(sets.Vehicles), Drivers: sorted(sets.Drivers), Trailers: sorted(sets.Trailers) };
+        return { File: sorted(sets.File), Type: sorted(sets.Type), Groups: sorted(sets.Groups), Vehicles: sorted(sets.Vehicles), Drivers: sorted(sets.Drivers), Trailers: sorted(sets.Trailers) };
     }, [tableData]);
 
     // Global search box options: owner names grouped by kind. Picking one sets the global

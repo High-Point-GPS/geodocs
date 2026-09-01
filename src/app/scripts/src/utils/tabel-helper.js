@@ -12,6 +12,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
+import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
+import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
 import dayjs from 'dayjs';
 
 import { archivedLabel, getFileTypeMeta } from './formatter';
@@ -186,6 +188,70 @@ const StatusPill = ({ label, tone }) => {
     );
 };
 
+// What the document is (the fleet's own document type), plus a marker when a driver
+// added it from the Drive add-in rather than an admin from here. Both are optional: a
+// document uploaded before types existed simply has neither.
+const TypeCell = ({ value, uploadedBy, description }) => {
+    const label = String(value ?? '').trim();
+    const driverLabel = uploadedBy
+        ? uploadedBy.driverName || uploadedBy.userName || 'a driver'
+        : null;
+
+    if (!label && !driverLabel) {
+        return <Typography sx={{ color: '#cbd5e1' }}>—</Typography>;
+    }
+
+    return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, minWidth: 0 }}>
+            {label ? (
+                <Tooltip title={description || ''} arrow disableHoverListener={!description}>
+                    <Box
+                        sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            maxWidth: '100%',
+                            px: 0.9,
+                            py: '2px',
+                            borderRadius: '7px',
+                            bgcolor: '#eef2ff',
+                            color: '#3730a3',
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            lineHeight: 1.6,
+                        }}
+                    >
+                        <LabelOutlinedIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {label}
+                        </Box>
+                    </Box>
+                </Tooltip>
+            ) : null}
+            {driverLabel ? (
+                <Tooltip title={`Uploaded from the Drive app by ${driverLabel}`} arrow>
+                    <Box
+                        sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.4,
+                            maxWidth: '100%',
+                            color: '#64748b',
+                            fontSize: 11,
+                            fontWeight: 600,
+                        }}
+                    >
+                        <PhoneIphoneOutlinedIcon sx={{ fontSize: 12, flexShrink: 0 }} />
+                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {driverLabel}
+                        </Box>
+                    </Box>
+                </Tooltip>
+            ) : null}
+        </Box>
+    );
+};
+
 const ExpiryCell = ({ value }) => {
     if (value === null || value === undefined || value === '') {
         return <Typography sx={{ color: '#cbd5e1' }}>No expiry</Typography>;
@@ -224,6 +290,16 @@ const ownersSort = (rowA, rowB, columnId) => {
     return a < b ? -1 : a > b ? 1 : 0;
 };
 
+// The Type column shows two things — the document type and who uploaded it — so its
+// filter has to search both, or filtering by a driver's name finds nothing.
+const typeFilter = (row, columnId, filterValue) => {
+    const needle = String(filterValue).toLowerCase();
+    const uploadedBy = row.original.uploadedBy || {};
+    return [row.getValue(columnId), uploadedBy.driverName, uploadedBy.userName, row.original.description]
+        .filter((v) => v != null && v !== '')
+        .some((v) => String(v).toLowerCase().includes(needle));
+};
+
 // Match the expiry filter against the date the user actually sees, with an ISO fallback.
 const expiryFilter = (row, columnId, filterValue) => {
     const v = row.getValue(columnId);
@@ -245,6 +321,19 @@ export const columns = [
             />
         ),
         filterFn: 'fuzzy',
+        sortingFn: fuzzySort,
+    }),
+    columnHelper.accessor('documentType', {
+        header: () => 'Type',
+        cell: (info) => (
+            <TypeCell
+                value={info.renderValue()}
+                uploadedBy={info.row.original.uploadedBy}
+                description={info.row.original.description}
+            />
+        ),
+        // Matches the driver's name too, so "Type: max" finds everything that driver added.
+        filterFn: typeFilter,
         sortingFn: fuzzySort,
     }),
     columnHelper.accessor('owners.groups', {

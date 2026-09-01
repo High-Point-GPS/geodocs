@@ -1,9 +1,16 @@
 export function generateCSV(fileTable) {
-    let csvData = [['File', 'Groups', 'Vehicles', 'Drivers', 'Trailers', 'Expiry Date']];
+    let csvData = [
+        ['File', 'Type', 'Uploaded By', 'Notes', 'Groups', 'Vehicles', 'Drivers', 'Trailers', 'Expiry Date'],
+    ];
 
     fileTable.forEach((fileData) => {
+        const uploadedBy = fileData.uploadedBy;
         csvData.push([
             fileData.fileName,
+            fileData.documentType || '',
+            // Blank means an admin uploaded it from the web app.
+            uploadedBy ? uploadedBy.driverName || uploadedBy.userName || 'Driver' : '',
+            fileData.description || '',
             combineData(fileData.owners.groups),
             combineData(fileData.owners.vehicles),
             combineData(fileData.owners.drivers),

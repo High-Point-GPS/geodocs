@@ -29,6 +29,7 @@ import FileActions from './components/FileActions';
 import FilePreview, { invalidatePreviewCache } from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
 import GroupAlertRules from './components/GroupAlertRules';
+import DocumentTypesInput from './components/DocumentTypesInput';
 import Spinner from './components/Spinner';
 
 import { buildAssetIndex, formatGeotabData, getFileTypeMeta, isActiveAsset } from './utils/formatter';
@@ -44,6 +45,7 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 
 import '../../styles/app-styles.css';
 
@@ -144,6 +146,8 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	const [fleetSaving, setFleetSaving] = useState(false);
 	const [fleetError, setFleetError] = useState('');
 	const [driverCanDownload, setDriverCanDownload] = useState(true);
+	const [driverCanUpload, setDriverCanUpload] = useState(false);
+	const [documentTypes, setDocumentTypes] = useState([]);
     const [geotabData, setGeotabData] = useState({
         vehicles: [],
         drivers: [],
@@ -225,13 +229,23 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 	// restrictDownload is what the GeoDocs Drive add-in reads; the toggle is phrased the
 	// positive way round, so it is stored inverted.
+	const seedFleetSettings = (config) => {
+		setDriverCanDownload(!config?.restrictDownload);
+		setDriverCanUpload(config?.driverCanUpload === true);
+		setDocumentTypes(
+			Array.isArray(config?.documentTypes)
+				? config.documentTypes.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim())
+				: []
+		);
+	};
+
 	useEffect(() => {
-		setDriverCanDownload(!databaseConfig?.restrictDownload);
+		seedFleetSettings(databaseConfig);
 	}, [databaseConfig]);
 
 	useEffect(() => {
 		if (!fleetSettingsOpen) return;
-		setDriverCanDownload(!databaseConfig?.restrictDownload);
+		seedFleetSettings(databaseConfig);
 		setFleetError('');
 	}, [fleetSettingsOpen, databaseConfig]);
 
@@ -402,7 +416,13 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						'Content-Type': 'application/json',
 						Accept: 'application/json',
 					},
-					body: JSON.stringify({ session: sessionInfo, database, driverCanDownload }),
+					body: JSON.stringify({
+						session: sessionInfo,
+						database,
+						driverCanDownload,
+						driverCanUpload,
+						documentTypes,
+					}),
 				}
 			);
 
@@ -419,6 +439,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				...current,
 				restrictDownload:
 					typeof data.restrictDownload === 'boolean' ? data.restrictDownload : !driverCanDownload,
+				driverCanUpload:
+					typeof data.driverCanUpload === 'boolean' ? data.driverCanUpload : driverCanUpload,
+				documentTypes: data.documentTypes ?? documentTypes,
 			}));
 			setFleetSettingsOpen(false);
 		} catch (error) {
@@ -1129,6 +1152,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				onClose={() => setFleetSettingsOpen(false)}
 				maxWidth="sm"
 				fullWidth
+				scroll="paper"
 				PaperProps={{ sx: { borderRadius: '16px' } }}
 				aria-labelledby="fleet-settings-title"
 			>
@@ -1167,7 +1191,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						<CloseIcon />
 					</IconButton>
 				</DialogTitle>
-				<DialogContent sx={{ px: 2.5, pt: 1 }}>
+				<DialogContent sx={{ px: 2.5, pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
 					<Box
 						sx={{
 							border: '1px solid #e5e7eb',
@@ -1196,6 +1220,39 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 							color="primary"
 							inputProps={{ 'aria-label': 'Allow drivers to download documents' }}
 						/>
+					</Box>
+					<Box
+						sx={{
+							border: '1px solid #e5e7eb',
+							borderRadius: '12px',
+							bgcolor: '#fbfcfe',
+							px: 2,
+							py: 1.75,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 1.5,
+						}}
+					>
+						<CloudUploadOutlinedIcon sx={{ fontSize: 28, color: driverCanUpload ? '#1B7A3D' : '#94a3b8', flexShrink: 0 }} />
+						<Box sx={{ flex: 1, minWidth: 0 }}>
+							<Typography sx={{ fontWeight: 700, color: '#1f2937' }}>
+								Allow drivers to upload documents
+							</Typography>
+							<Typography variant="caption" sx={{ display: 'block', color: '#64748b', lineHeight: 1.5 }}>
+								Lets drivers add a photo or file from the Drive add-in — a bill of lading, a fuel
+								receipt, damage — attached to the vehicle, driver and trailer they are on. Uploads
+								appear here immediately, marked with the driver&rsquo;s name.
+							</Typography>
+						</Box>
+						<Switch
+							checked={driverCanUpload}
+							onChange={(e) => setDriverCanUpload(e.target.checked)}
+							color="primary"
+							inputProps={{ 'aria-label': 'Allow drivers to upload documents' }}
+						/>
+					</Box>
+					<Box sx={{ borderTop: '1px solid #eef2f7', pt: 2 }}>
+						<DocumentTypesInput value={documentTypes} onChange={setDocumentTypes} />
 					</Box>
 					{fleetError && (
 						<Typography sx={{ color: '#E11D48', fontSize: 13, mt: 1.5 }}>{fleetError}</Typography>
@@ -1317,6 +1374,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
 						onFileDeleted={handleFileDeleted}
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
+						documentTypes={documentTypes}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 						geotabAssets={geotabAssets}

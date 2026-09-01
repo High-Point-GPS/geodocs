@@ -9,6 +9,8 @@ import {
     Tooltip,
     Alert,
     AlertTitle,
+    MenuItem,
+    InputAdornment,
 } from '@mui/material';
 import {
     formatOptions,
@@ -35,6 +37,7 @@ import GroupSelect from './GroupSelect';
 import Spinner from './Spinner';
 import Popup from './Popup';
 import EmailChipsInput, { splitEmails } from './EmailChipsInput';
+import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
 
 // File types GeoDocs accepts (matches the backend validator). Setting these as the file
 // input's `accept` makes mobile pickers expose the Files/document picker (so PDFs and docs
@@ -70,6 +73,7 @@ const Uploader = ({
     onCancel,
     onFileDeleted,
     globalAlertEmail = '',
+    documentTypes = [],
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
     geotabAssets = {},
@@ -104,6 +108,10 @@ const Uploader = ({
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [deleteLoad, setDeleteLoad] = useState(false);
     const [driverCanView, setDriverCanView] = useState(true);
+    // What the document IS, from the fleet's own list (Fleet Settings), plus a free note.
+    // Both optional here — a fleet that hasn't defined any types just doesn't see the field.
+    const [documentType, setDocumentType] = useState('');
+    const [description, setDescription] = useState('');
     // "Replace file" in the edit dialog: when the user picks a new file we swap it into
     // uploadFiles[0] and flag it, so the save sends the new bytes (editDocFile overwrites
     // the stored object in place, keeping the same record/associations/alerts). The original
@@ -326,6 +334,8 @@ const Uploader = ({
         setUploadFiles([]);
         setAlertEmail('');
         setDriverCanView(true);
+        setDocumentType('');
+        setDescription('');
         setFileReplaced(false);
         const emptyData = {
             vehicles: [],
@@ -417,6 +427,9 @@ const Uploader = ({
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
                 alertEmail: normalizedAlertEmail,
                 hideFromDriver: !driverCanView,
+                // Always sent (even empty) so clearing the type actually clears it.
+                documentType: documentType || null,
+                description: description || null,
             };
 
             // Check if anything actually changed
@@ -431,8 +444,10 @@ const Uploader = ({
                 splitEmails(str).map((e) => e.toLowerCase()).join(', ') || null;
             const alertEmailChanged = normalizeEmailList(alertEmail) !== normalizeEmailList(editFile.alertEmail);
             const hideFromDriverChanged = (!driverCanView) !== !!editFile.hideFromDriver;
+            const documentTypeChanged = (documentType || '') !== (editFile.documentType || '');
+            const descriptionChanged = (description || '') !== (editFile.description || '');
 
-            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged && !fileReplaced) {
+            if (!fileNameChanged && !expiryChanged && !ownersChanged && !tagsChanged && !fileDataChanged && !alertEmailChanged && !hideFromDriverChanged && !documentTypeChanged && !descriptionChanged && !fileReplaced) {
                 setError('No changes made. Please modify the file or its details before saving.');
                 setLoading(false);
                 return;
@@ -486,6 +501,8 @@ const Uploader = ({
                 expiryDate: expiryDate ? expiryDate.toISOString() : null,
                 alertEmail: normalizedAlertEmail,
                 hideFromDriver: !driverCanView,
+                documentType: documentType || null,
+                description: description || null,
             });
             setSuccess('File successfully updated!');
             setTimeout(() => setSuccess(''), 3000);
@@ -586,6 +603,8 @@ const Uploader = ({
             expiryDate: expiryDate ? expiryDate.toISOString() : undefined,
             alertEmail: normalizedAlertEmail,
             hideFromDriver: !driverCanView,
+            documentType: documentType || undefined,
+            description: description || undefined,
         };
 
          const response = await fetch(
@@ -606,7 +625,14 @@ const Uploader = ({
            console.error('Upload File failed: ', errorData.error ? errorData.error : '');
         }
         const responseData = await response.json();
-        return { ...responseData, alertEmail: normalizedAlertEmail, hideFromDriver: !driverCanView, ownerNames };
+        return {
+            ...responseData,
+            alertEmail: normalizedAlertEmail,
+            hideFromDriver: !driverCanView,
+            documentType: documentType || null,
+            description: description || null,
+            ownerNames,
+        };
     };
 
     useEffect(() => {
@@ -726,6 +752,10 @@ const Uploader = ({
 
             setAlertEmail(editFile.alertEmail || '');
                         setDriverCanView(editFile.hideFromDriver ? false : true);
+      // A stored type the admin has since removed from the list would render as a blank
+      // Select; keep it selectable so saving an unrelated change doesn't silently drop it.
+      setDocumentType(editFile.documentType || '');
+      setDescription(editFile.description || '');
 
  
       setEditMode(true);
@@ -949,6 +979,59 @@ const Uploader = ({
                     </Box>
                 </Box>
             )}
+
+            {/* What this document is, from the fleet's own list, plus an optional note.
+                Hidden entirely when no types are configured — an empty dropdown helps
+                nobody, and the field is optional from the web app either way. */}
+            {documentTypes.length > 0 || documentType ? (
+                <Box
+                    sx={{
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: 1.25,
+                        mt: editMode ? 1 : 1.5,
+                    }}
+                >
+                    <TextField
+                        select
+                        size="small"
+                        label="Document type"
+                        value={documentType}
+                        onChange={(e) => setDocumentType(e.target.value)}
+                        sx={{ width: { xs: '100%', sm: 240 }, flexShrink: 0 }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <LabelOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                </InputAdornment>
+                            ),
+                        }}
+                    >
+                        <MenuItem value="">
+                            <em>None</em>
+                        </MenuItem>
+                        {/* A type stored on this file that the admin has since removed from
+                            the list still appears, so saving cannot silently drop it. */}
+                        {(documentType && !documentTypes.includes(documentType)
+                            ? [documentType, ...documentTypes]
+                            : documentTypes
+                        ).map((type) => (
+                            <MenuItem key={type} value={type}>
+                                {type}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                    <TextField
+                        size="small"
+                        label="Notes (optional)"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        fullWidth
+                        inputProps={{ maxLength: 500 }}
+                    />
+                </Box>
+            ) : null}
 
             {/* Driver visibility — shown for both new uploads and edits */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: editMode ? 1 : 1.5 }}>
