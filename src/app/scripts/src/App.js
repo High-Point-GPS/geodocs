@@ -406,6 +406,48 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		}
 	};
 
+	// Adds one document type to the fleet's list from inside the uploader, so a type can
+	// be created at the moment it is needed instead of sending the user to Fleet Settings
+	// and back. Writes through the same endpoint the settings dialog uses.
+	const handleAddDocumentType = async (name) => {
+		const trimmed = String(name || '').trim();
+		if (!trimmed) return false;
+		if (savedDocumentTypes.some((t) => t.toLowerCase() === trimmed.toLowerCase())) return true;
+
+		const next = [...savedDocumentTypes, trimmed];
+
+		const response = await fetch(
+			'https://us-central1-geotabfiles.cloudfunctions.net/editFleetSettings',
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({
+					session: {
+						database,
+						sessionId: session.sessionId,
+						userName: session.userName,
+						server,
+					},
+					database,
+					documentTypes: next,
+				}),
+			}
+		);
+
+		const data = await response.json().catch(() => ({}));
+
+		if (!response.ok) {
+			if (data.valid === false) setValidationError(true);
+			throw new Error(data.error || 'Could not add that document type.');
+		}
+
+		setDatabaseConfig((current) => ({
+			...current,
+			documentTypes: data.documentTypes ?? next,
+		}));
+		return true;
+	};
+
 	const handleSaveFleetSettings = async () => {
 		setFleetSaving(true);
 		setFleetError('');
@@ -1312,9 +1354,10 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						setEditFile(null);
 					}
 				}}
-				// The edit form is a compact review of one document; only the upload flow needs
-				// the full width for its dropzone and three-column asset pickers.
-				maxWidth={editFile ? 'sm' : 'lg'}
+				// One size for both: 'md' is the narrowest width that still fits the three
+				// asset pickers on a single row (each needs ~210px for a chip plus its
+				// dropdown arrow), which is what keeps either dialog from getting tall.
+				maxWidth="md"
 				fullWidth
 				// The group picker's dropdown panel renders at document.body (outside this
 				// dialog) so its search field can be focused/typed in without MUI's focus
@@ -1385,6 +1428,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						onFileDeleted={handleFileDeleted}
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
 						documentTypes={savedDocumentTypes}
+						onAddDocumentType={handleAddDocumentType}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 						geotabAssets={geotabAssets}

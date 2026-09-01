@@ -9,8 +9,9 @@ import {
     Tooltip,
     Alert,
     AlertTitle,
-    MenuItem,
     InputAdornment,
+    Autocomplete,
+    CircularProgress,
 } from '@mui/material';
 import {
     formatOptions,
@@ -74,6 +75,7 @@ const Uploader = ({
     onFileDeleted,
     globalAlertEmail = '',
     documentTypes = [],
+    onAddDocumentType,
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
     geotabAssets = {},
@@ -112,6 +114,9 @@ const Uploader = ({
     // Both optional here — a fleet that hasn't defined any types just doesn't see the field.
     const [documentType, setDocumentType] = useState('');
     const [description, setDescription] = useState('');
+    // Creating a type inline writes to the fleet config, so it can fail and has to say so.
+    const [addingType, setAddingType] = useState(false);
+    const [typeError, setTypeError] = useState('');
     // "Replace file" in the edit dialog: when the user picks a new file we swap it into
     // uploadFiles[0] and flag it, so the save sends the new bytes (editDocFile overwrites
     // the stored object in place, keeping the same record/associations/alerts). The original
@@ -800,8 +805,8 @@ const Uploader = ({
         minWidth: 0,
         maxWidth: 720,
         mx: 'auto',
-        mt: editMode ? 1.25 : 2,
-        p: editMode ? 1.5 : 2,
+        mt: 1.25,
+        p: 1.5,
         border: '1px solid #e8edf3',
         borderRadius: '14px',
         bgcolor: '#fff',
@@ -809,7 +814,7 @@ const Uploader = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: editMode ? 1 : 1.25,
+        gap: 1,
     };
 
     const sectionTitleSx = {
@@ -956,45 +961,105 @@ const Uploader = ({
             {/* What this document is, from the fleet's own list, plus an optional note.
                 Hidden entirely when no types are configured — an empty dropdown helps
                 nobody, and the field is optional from the web app either way. */}
-            {documentTypes.length > 0 || documentType ? (
+            {documentTypes.length > 0 || documentType || onAddDocumentType ? (
                 <Box
                     sx={{
                         width: '100%',
                         display: 'flex',
                         flexDirection: { xs: 'column', sm: 'row' },
                         gap: 1.25,
-                        mt: editMode ? 1 : 1.5,
+                        mt: 1,
                     }}
                 >
-                    <TextField
-                        select
+                    <Autocomplete
                         size="small"
-                        label="Document type"
-                        value={documentType}
-                        onChange={(e) => setDocumentType(e.target.value)}
-                        sx={{ width: { xs: '100%', sm: 240 }, flexShrink: 0 }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LabelOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                                </InputAdornment>
-                            ),
+                        // A type stored on this file that the admin has since removed from
+                        // the list still appears, so saving cannot silently drop it.
+                        options={
+                            documentType && !documentTypes.includes(documentType)
+                                ? [documentType, ...documentTypes]
+                                : documentTypes
+                        }
+                        value={documentType || null}
+                        disabled={addingType}
+                        onChange={async (e, picked) => {
+                            setTypeError('');
+                            if (picked && typeof picked === 'object' && picked.addNew) {
+                                // Chose "Add …": create it on the fleet before selecting it,
+                                // so what gets saved on the document is a type that exists.
+                                setAddingType(true);
+                                try {
+                                    await onAddDocumentType(picked.value);
+                                    setDocumentType(picked.value);
+                                } catch (err) {
+                                    setTypeError(err.message || 'Could not add that type.');
+                                } finally {
+                                    setAddingType(false);
+                                }
+                                return;
+                            }
+                            setDocumentType(picked || '');
                         }}
-                    >
-                        <MenuItem value="">
-                            <em>None</em>
-                        </MenuItem>
-                        {/* A type stored on this file that the admin has since removed from
-                            the list still appears, so saving cannot silently drop it. */}
-                        {(documentType && !documentTypes.includes(documentType)
-                            ? [documentType, ...documentTypes]
-                            : documentTypes
-                        ).map((type) => (
-                            <MenuItem key={type} value={type}>
-                                {type}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                        getOptionLabel={(option) =>
+                            typeof option === 'string' ? option : `Add “${option.value}”`
+                        }
+                        isOptionEqualToValue={(option, value) => option === value}
+                        filterOptions={(options, params) => {
+                            const needle = params.inputValue.trim();
+                            const filtered = options.filter((o) =>
+                                o.toLowerCase().includes(needle.toLowerCase())
+                            );
+                            const exists = options.some(
+                                (o) => o.toLowerCase() === needle.toLowerCase()
+                            );
+                            // Offer to create it only when it is genuinely new.
+                            if (needle && !exists && onAddDocumentType) {
+                                filtered.push({ addNew: true, value: needle });
+                            }
+                            return filtered;
+                        }}
+                        renderOption={(props, option) => (
+                            <Box
+                                component="li"
+                                {...props}
+                                key={typeof option === 'string' ? option : `add-${option.value}`}
+                                sx={
+                                    typeof option === 'string'
+                                        ? undefined
+                                        : { fontWeight: 700, color: '#26477C' }
+                                }
+                            >
+                                {typeof option === 'string' ? option : `Add “${option.value}”`}
+                            </Box>
+                        )}
+                        sx={{ width: { xs: '100%', sm: 260 }, flexShrink: 0 }}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Document type"
+                                placeholder={onAddDocumentType ? 'Select or type a new one…' : 'Select…'}
+                                error={!!typeError}
+                                helperText={typeError || ' '}
+                                InputProps={{
+                                    ...params.InputProps,
+                                    startAdornment: (
+                                        <>
+                                            <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                                                <LabelOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                            </InputAdornment>
+                                            {params.InputProps.startAdornment}
+                                        </>
+                                    ),
+                                    endAdornment: (
+                                        <>
+                                            {addingType ? <CircularProgress size={16} /> : null}
+                                            {params.InputProps.endAdornment}
+                                        </>
+                                    ),
+                                }}
+                            />
+                        )}
+                    />
                     <TextField
                         size="small"
                         label="Notes (optional)"
@@ -1016,7 +1081,7 @@ const Uploader = ({
                     justifyContent: 'center',
                     flexWrap: 'wrap',
                     gap: 1,
-                    mt: editMode ? 0.75 : 1.5,
+                    mt: 0.75,
                 }}
             >
                 {editMode && !replaceOpen && !fileReplaced && (
@@ -1079,22 +1144,22 @@ const Uploader = ({
                     flexDirection: 'column',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    gap: editMode ? '0.5rem' : '1rem',
+                    gap: '0.5rem',
                 }}
             >
                 <Box sx={sectionCardSx}>
                 <Box
                     sx={{
                         display: 'flex',
-                        flexDirection: editMode ? 'row' : 'column',
+                        flexDirection: 'row',
                         flexWrap: 'wrap',
                         alignItems: 'center',
-                        gap: editMode ? 1.5 : 0,
+                        gap: 1.5,
                         width: '100%',
                         minWidth: 0,
                     }}
                 >
-                <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
+                <Typography sx={{ ...sectionTitleSx, width: 'auto', flexShrink: 0 }}>
                     Associations
                 </Typography>
                 <RadioGroup
@@ -1102,7 +1167,7 @@ const Uploader = ({
                     name="row-radio-buttons-group"
                     onChange={handleUpdateUploadType}
                     value={uploadType}
-                    sx={{ justifyContent: 'center', gap: 3, mb: editMode ? 0 : 0.5, flex: 1 }}
+                    sx={{ justifyContent: 'center', gap: 3, mb: 0, flex: 1 }}
                 >
                     <FormControlLabel
                         value="uploadGroup"
@@ -1137,8 +1202,8 @@ const Uploader = ({
                             // to two roomy columns rather than three cramped ones, while
                             // the wide upload dialog still fits all three side by side.
                             gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                            gap: editMode ? 1.25 : '1.5rem',
-                            px: editMode ? 0 : '0.5rem',
+                            gap: 1.25,
+                            px: 0,
                         }}
                     >
                         <AssociateSelect
@@ -1185,28 +1250,28 @@ const Uploader = ({
                     <Box
                         sx={{
                             display: 'flex',
-                            flexDirection: editMode ? 'row' : 'column',
+                            flexDirection: 'row',
                             flexWrap: 'wrap',
-                            alignItems: editMode ? 'center' : 'stretch',
-                            gap: editMode ? 1.5 : 0,
+                            alignItems: 'center',
+                            gap: 1.5,
                             width: '100%',
                             minWidth: 0,
                         }}
                     >
-                    <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
+                    <Typography sx={{ ...sectionTitleSx, width: 'auto', flexShrink: 0 }}>
                         Expiration (optional)
                     </Typography>
                     <Box
                         sx={{
                             // `width: 100%` here would claim the whole row and push the
                             // inline heading onto a line of its own; take what is left instead.
-                            width: editMode ? 'auto' : '100%',
-                            flex: editMode ? 1 : 'none',
+                            width: 'auto',
+                            flex: 1,
                             minWidth: 0,
                             display: 'flex',
                             flexWrap: 'wrap',
                             alignItems: 'flex-start',
-                            justifyContent: editMode ? 'flex-start' : 'center',
+                            justifyContent: 'flex-start',
                             gap: 1.25,
                         }}
                     >
