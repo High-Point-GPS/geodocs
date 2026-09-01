@@ -229,6 +229,15 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 	// restrictDownload is what the GeoDocs Drive add-in reads; the toggle is phrased the
 	// positive way round, so it is stored inverted.
+	// The saved document types, as opposed to the Fleet Settings form's working copy.
+	const savedDocumentTypes = useMemo(
+		() =>
+			Array.isArray(databaseConfig?.documentTypes)
+				? databaseConfig.documentTypes.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim())
+				: [],
+		[databaseConfig]
+	);
+
 	const seedFleetSettings = (config) => {
 		setDriverCanDownload(!config?.restrictDownload);
 		setDriverCanUpload(config?.driverCanUpload === true);
@@ -237,6 +246,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				? config.documentTypes.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.trim())
 				: []
 		);
+		setFleetError('');
 	};
 
 	useEffect(() => {
@@ -1374,7 +1384,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						onCancel={() => { setUploaderOpen(false); if (editFile) setEditFile(null); }}
 						onFileDeleted={handleFileDeleted}
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
-						documentTypes={documentTypes}
+						documentTypes={savedDocumentTypes}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 						geotabAssets={geotabAssets}
