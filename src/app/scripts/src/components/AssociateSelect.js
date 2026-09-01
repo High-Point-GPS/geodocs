@@ -80,6 +80,7 @@ const AssociateSelect = ({
 		<Box sx={{ width: { xs: '100%', sm: '100%', md: selectWidth } }}>
 			<Autocomplete
 				multiple
+				size="small"
 				limitTags={1}
 				options={currentOptions}
 				value={currentSelections}
@@ -97,12 +98,22 @@ const AssociateSelect = ({
 								{...tagProps}
 								size="small"
 								label={option.archived ? `${option.label} (${archivedLabel(dataKey)})` : option.label}
+								title={option.archived ? `${option.label} (${archivedLabel(dataKey)})` : option.label}
 								sx={option.archived ? { color: '#94a3b8', fontStyle: 'italic', bgcolor: '#f8fafc' } : undefined}
 							/>
 						);
 					})
 				}
-				renderInput={(params) => <TextField {...params} label={`${label}s`} />}
+				renderInput={(params) => <TextField {...params} label={`${label}s`} size="small" />}
+				sx={{
+					// A chip plus the dropdown arrow very nearly fills a narrow column, and
+					// the free-text caret's default minimum then tipped it over, wrapping to
+					// a second line and leaving an empty band under the chip (the field went
+					// ~86px tall for one selection). The caret only needs somewhere to sit;
+					// the chip keeps its natural width, because a name shortened to "T…"
+					// tells the user nothing about what is attached.
+					'& .MuiAutocomplete-input': { minWidth: '4px !important' },
+				}}
 				onChange={(event, newValue) => {
 					handleUpdateSelections(newValue);
 				}}

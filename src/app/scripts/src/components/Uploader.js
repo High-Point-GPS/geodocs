@@ -1131,7 +1131,12 @@ const Uploader = ({
                         sx={{
                             width: '100%',
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                            // 210px is the width at which a selected chip and the dropdown
+                            // arrow sit on ONE line. Below it the caret wraps and the field
+                            // grows an empty band; so in the narrow edit dialog these fall
+                            // to two roomy columns rather than three cramped ones, while
+                            // the wide upload dialog still fits all three side by side.
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
                             gap: editMode ? 1.25 : '1.5rem',
                             px: editMode ? 0 : '0.5rem',
                         }}
@@ -1193,12 +1198,15 @@ const Uploader = ({
                     </Typography>
                     <Box
                         sx={{
-                            width: '100%',
+                            // `width: 100%` here would claim the whole row and push the
+                            // inline heading onto a line of its own; take what is left instead.
+                            width: editMode ? 'auto' : '100%',
+                            flex: editMode ? 1 : 'none',
                             minWidth: 0,
                             display: 'flex',
                             flexWrap: 'wrap',
                             alignItems: 'flex-start',
-                            justifyContent: 'center',
+                            justifyContent: editMode ? 'flex-start' : 'center',
                             gap: 1.25,
                         }}
                     >
