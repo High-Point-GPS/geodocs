@@ -108,7 +108,7 @@ const DocumentTypesInput = ({ value, onChange }) => {
                     }}
                     onBlur={addPending}
                     disabled={full}
-                    placeholder={full ? '' : 'e.g. Bill of Lading'}
+                    placeholder={full ? '' : 'e.g. Registration'}
                     inputProps={{ 'aria-label': 'New document type', maxLength: MAX_LENGTH + 1 }}
                     InputProps={{
                         startAdornment: (
