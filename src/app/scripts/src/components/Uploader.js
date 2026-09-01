@@ -109,6 +109,7 @@ const Uploader = ({
     // the stored object in place, keeping the same record/associations/alerts). The original
     // file + extension are kept in refs so "Use original" can undo without a re-download.
     const [fileReplaced, setFileReplaced] = useState(false);
+    const [replaceOpen, setReplaceOpen] = useState(false);
     const originalFileRef = useRef(null);
     const originalExtRef = useRef('');
 
@@ -366,6 +367,7 @@ const Uploader = ({
         if (originalFileRef.current) setUploadFiles([originalFileRef.current]);
         setFileExtension(originalExtRef.current);
         setFileReplaced(false);
+        setReplaceOpen(false);
     };
 
     const handeEditFile = async () => {
@@ -705,6 +707,7 @@ const Uploader = ({
       // Keep the originally-loaded file so a pending "Replace" can be undone without refetching.
       originalFileRef.current = fileToEdit;
       setFileReplaced(false);
+      setReplaceOpen(false);
 
       // Extract extension and filename separately
       const lastDotIndex = editFile.fileName.lastIndexOf('.');
@@ -766,8 +769,8 @@ const Uploader = ({
         width: '100%',
         maxWidth: 720,
         mx: 'auto',
-        mt: 2,
-        p: 2,
+        mt: editMode ? 1.25 : 2,
+        p: editMode ? 1.5 : 2,
         border: '1px solid #e8edf3',
         borderRadius: '14px',
         bgcolor: '#fff',
@@ -775,7 +778,7 @@ const Uploader = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 1.25,
+        gap: editMode ? 1 : 1.25,
     };
 
     const sectionTitleSx = {
@@ -822,7 +825,7 @@ const Uploader = ({
                             src={imagePreviewUrl}
                             alt={editName}
                             sx={{
-                                maxHeight: 120,
+                                maxHeight: 84,
                                 maxWidth: '100%',
                                 objectFit: 'contain',
                                 borderRadius: '10px',
@@ -866,11 +869,33 @@ const Uploader = ({
                     </Box>
 
                     {/* Replace file: swap in a new version (e.g. a renewed document) without
-                        losing this record, its associations, or alert settings. */}
-                    <Box sx={{ width: '100%', mt: 1.25 }}>
+                        losing this record, its associations, or alert settings. Folded behind
+                        a link — most edits only touch the name, dates or associations. */}
+                    <Box sx={{ width: '100%', mt: 1 }}>
                         {!fileReplaced ? (
+                            !replaceOpen ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                    <Button
+                                        size="small"
+                                        onClick={() => setReplaceOpen(true)}
+                                        startIcon={<SwapHorizIcon fontSize="small" />}
+                                        sx={{ textTransform: 'none', fontWeight: 600, color: '#26477C' }}
+                                    >
+                                        Replace file
+                                    </Button>
+                                </Box>
+                            ) : (
                             <>
-                                <Typography sx={sectionTitleSx}>Replace file (optional)</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                    <Typography sx={sectionTitleSx}>Replace file (optional)</Typography>
+                                    <Button
+                                        size="small"
+                                        onClick={() => setReplaceOpen(false)}
+                                        sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b', flexShrink: 0 }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Box>
                                 <Box sx={{ mt: 0.75 }}>
                                     <FileDropzone
                                         files={[]}
@@ -883,6 +908,7 @@ const Uploader = ({
                                     Upload a new version to replace the current file. The document keeps its associations and alert settings — set the new expiry date below.
                                 </Typography>
                             </>
+                            )
                         ) : (
                             <Box
                                 sx={{
@@ -925,7 +951,7 @@ const Uploader = ({
             )}
 
             {/* Driver visibility — shown for both new uploads and edits */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: editMode ? 1 : 1.5 }}>
                 <Box
                     sx={{
                         display: 'flex',

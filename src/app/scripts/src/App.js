@@ -14,6 +14,7 @@ import {
     Checkbox,
     FormControlLabel,
     InputAdornment,
+    Switch,
 } from '@mui/material';
 import dayjs from 'dayjs';
 
@@ -27,6 +28,7 @@ import EmailChipsInput, { splitEmails } from './components/EmailChipsInput';
 import FileActions from './components/FileActions';
 import FilePreview, { invalidatePreviewCache } from './components/FilePreview';
 import FileTypeGlyph from './components/FileTypeGlyph';
+import GroupAlertRules from './components/GroupAlertRules';
 import Spinner from './components/Spinner';
 
 import { buildAssetIndex, formatGeotabData, getFileTypeMeta, isActiveAsset } from './utils/formatter';
@@ -40,6 +42,8 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 
 import '../../styles/app-styles.css';
 
@@ -132,6 +136,14 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	const [globalAlertEmail, setGlobalAlertEmail] = useState('');
 	const [globalAlertDaysBeforeExpiry, setGlobalAlertDaysBeforeExpiry] = useState('');
 	const [dailyNotifications, setDailyNotifications] = useState(false);
+	// Per-group overrides of the two global alert fields, edited as strings and
+	// converted on save (see handleSaveGlobalAlertSettings).
+	const [groupAlertRules, setGroupAlertRules] = useState([]);
+	// Fleet-wide options (gear button), separate from the expiry-alert dialog.
+	const [fleetSettingsOpen, setFleetSettingsOpen] = useState(false);
+	const [fleetSaving, setFleetSaving] = useState(false);
+	const [fleetError, setFleetError] = useState('');
+	const [driverCanDownload, setDriverCanDownload] = useState(true);
     const [geotabData, setGeotabData] = useState({
         vehicles: [],
         drivers: [],
@@ -169,6 +181,22 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		}).length;
 	}, [files, databaseConfig]);
 
+	// Stored rules use daysBeforeExpiry (number|null); the form keeps `days` as a string
+	// so a cleared field can mean "inherit the global window".
+	const getGroupRulesFromConfig = (config) =>
+		(Array.isArray(config?.groupAlertRules) ? config.groupAlertRules : [])
+			.filter((rule) => rule && typeof rule.group === 'string' && rule.group.trim())
+			.map((rule) => ({
+				group: rule.group.trim(),
+				groupId: rule.groupId ?? null,
+				depth: Number.isInteger(rule.depth) && rule.depth >= 0 ? rule.depth : 0,
+				emails: typeof rule.emails === 'string' ? rule.emails : '',
+				days:
+					rule.daysBeforeExpiry === 0 || rule.daysBeforeExpiry
+						? String(rule.daysBeforeExpiry)
+						: '',
+			}));
+
 	const getAlertSettingsFromConfig = (config) => ({
 		email: config?.alertEmail ?? '',
 		days:
@@ -183,6 +211,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		setGlobalAlertEmail(email ? String(email) : '');
 		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
 		setDailyNotifications(!!dn);
+		setGroupAlertRules(getGroupRulesFromConfig(databaseConfig));
 	}, [databaseConfig]);
 
 	useEffect(() => {
@@ -191,7 +220,20 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		setGlobalAlertEmail(email ? String(email) : '');
 		setGlobalAlertDaysBeforeExpiry(days === 0 || days ? String(days) : '7');
 		setDailyNotifications(!!dn);
+		setGroupAlertRules(getGroupRulesFromConfig(databaseConfig));
 	}, [settingsOpen, databaseConfig]);
+
+	// restrictDownload is what the GeoDocs Drive add-in reads; the toggle is phrased the
+	// positive way round, so it is stored inverted.
+	useEffect(() => {
+		setDriverCanDownload(!databaseConfig?.restrictDownload);
+	}, [databaseConfig]);
+
+	useEffect(() => {
+		if (!fleetSettingsOpen) return;
+		setDriverCanDownload(!databaseConfig?.restrictDownload);
+		setFleetError('');
+	}, [fleetSettingsOpen, databaseConfig]);
 
 	// EULA acceptance rides along in the config we already fetch (config.eula is the list of
 	// usernames who accepted) — there is no separate checkEula round trip blocking the mount.
@@ -272,12 +314,31 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			const parsedDays = Number(globalAlertDaysBeforeExpiry);
 			const alertDaysBeforeExpiry = Number.isFinite(parsedDays) && parsedDays >= 0 ? parsedDays : 7;
 
+			// Rows without a group were never finished; rows that override neither field
+			// are dropped by the backend anyway.
+			const rulesPayload = groupAlertRules
+				.filter((rule) => rule.group && rule.group.trim())
+				.map((rule) => {
+					const parsed = Number(rule.days);
+					return {
+						group: rule.group.trim(),
+						groupId: rule.groupId || null,
+						depth: Number.isInteger(rule.depth) && rule.depth >= 0 ? rule.depth : 0,
+						emails: (rule.emails || '').trim(),
+						daysBeforeExpiry:
+							String(rule.days).trim() !== '' && Number.isFinite(parsed) && parsed >= 0
+								? Math.floor(parsed)
+								: null,
+					};
+				});
+
 			const messageBody = {
 				session: sessionInfo,
 				database,
 				globalAlertEmail: globalAlertEmail.trim(),
 				globalAlertDaysBeforeExpiry: alertDaysBeforeExpiry,
 				dailyNotifications,
+				groupAlertRules: rulesPayload,
 			};
 
 			const response = await fetch(
@@ -310,6 +371,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 							? data.globalAlertDaysBeforeExpiry
 							: alertDaysBeforeExpiry,
 					dailyNotifications: data.dailyNotifications ?? dailyNotifications,
+					groupAlertRules: data.groupAlertRules ?? rulesPayload,
 				};
 			});
 			setSettingsOpen(false);
@@ -317,6 +379,53 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			console.error('Failed to save global alert settings:', error);
 		} finally {
 			setSettingsSaving(false);
+		}
+	};
+
+	const handleSaveFleetSettings = async () => {
+		setFleetSaving(true);
+		setFleetError('');
+
+		try {
+			const sessionInfo = {
+				database,
+				sessionId: session.sessionId,
+				userName: session.userName,
+				server,
+			};
+
+			const response = await fetch(
+				'https://us-central1-geotabfiles.cloudfunctions.net/editFleetSettings',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Accept: 'application/json',
+					},
+					body: JSON.stringify({ session: sessionInfo, database, driverCanDownload }),
+				}
+			);
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				if (data.valid === false) {
+					setValidationError(true);
+				}
+				throw new Error(data.error || data.message || 'Failed to save fleet settings');
+			}
+
+			setDatabaseConfig((current) => ({
+				...current,
+				restrictDownload:
+					typeof data.restrictDownload === 'boolean' ? data.restrictDownload : !driverCanDownload,
+			}));
+			setFleetSettingsOpen(false);
+		} catch (error) {
+			console.error('Failed to save fleet settings:', error);
+			setFleetError('Could not save fleet settings. Please try again.');
+		} finally {
+			setFleetSaving(false);
 		}
 	};
 
@@ -782,6 +891,15 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 							Expiry Notifications
 						</Button>
 					</Tooltip>
+					<Tooltip title="Fleet settings" arrow>
+						<IconButton
+							aria-label="Fleet settings"
+							onClick={() => setFleetSettingsOpen(true)}
+							sx={{ border: '1px solid #e5e7eb', borderRadius: '10px', bgcolor: '#fff' }}
+						>
+							<SettingsOutlinedIcon sx={{ color: '#334155' }} />
+						</IconButton>
+					</Tooltip>
 					<Tooltip title="More Info" arrow>
 						<IconButton
 							aria-label="Help"
@@ -797,8 +915,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				<Dialog
 					open={settingsOpen}
 					onClose={() => setSettingsOpen(false)}
-					maxWidth="sm"
+					maxWidth="md"
 					fullWidth
+					scroll="paper"
 					PaperProps={{ sx: { borderRadius: '16px' } }}
 					aria-labelledby="global-alert-settings-title"
 				>
@@ -930,6 +1049,15 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 								</Box>
 							</Box>
 						</Box>
+						<Box sx={{ borderTop: '1px solid #eef2f7', pt: 2 }}>
+							<GroupAlertRules
+								rules={groupAlertRules}
+								onChange={setGroupAlertRules}
+								groupData={geotabData.groups}
+								globalEmail={globalAlertEmail}
+								globalDays={globalAlertDaysBeforeExpiry}
+							/>
+						</Box>
 					</DialogContent>
 					<DialogActions sx={{ px: { xs: 1.5, sm: 2.5 }, pb: 2.5, pt: 0.5, justifyContent: 'space-between' }}>
 						<Button
@@ -997,6 +1125,118 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			)}
 
 			<Dialog
+				open={fleetSettingsOpen}
+				onClose={() => setFleetSettingsOpen(false)}
+				maxWidth="sm"
+				fullWidth
+				PaperProps={{ sx: { borderRadius: '16px' } }}
+				aria-labelledby="fleet-settings-title"
+			>
+				<DialogTitle component="div" sx={{ m: 0, p: 2.5, pb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+					<Box
+						sx={{
+							width: 56,
+							height: 56,
+							borderRadius: '50%',
+							bgcolor: '#26477C',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							flexShrink: 0,
+						}}
+					>
+						<SettingsOutlinedIcon sx={{ fontSize: 30, color: '#FF7404' }} />
+					</Box>
+					<Box sx={{ flex: 1, minWidth: 0 }}>
+						<Typography
+							component="h2"
+							id="fleet-settings-title"
+							sx={{ fontWeight: 700, fontSize: 20, color: '#26477C', lineHeight: 1.3, m: 0 }}
+						>
+							Fleet Settings
+						</Typography>
+						<Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
+							Options that apply to everyone in this database.
+						</Typography>
+					</Box>
+					<IconButton
+						aria-label="close fleet settings"
+						onClick={() => setFleetSettingsOpen(false)}
+						sx={{ color: (theme) => theme.palette.grey[500], mt: -0.5, mr: -0.5 }}
+					>
+						<CloseIcon />
+					</IconButton>
+				</DialogTitle>
+				<DialogContent sx={{ px: 2.5, pt: 1 }}>
+					<Box
+						sx={{
+							border: '1px solid #e5e7eb',
+							borderRadius: '12px',
+							bgcolor: '#fbfcfe',
+							px: 2,
+							py: 1.75,
+							display: 'flex',
+							alignItems: 'center',
+							gap: 1.5,
+						}}
+					>
+						<DownloadOutlinedIcon sx={{ fontSize: 28, color: driverCanDownload ? '#1B7A3D' : '#94a3b8', flexShrink: 0 }} />
+						<Box sx={{ flex: 1, minWidth: 0 }}>
+							<Typography sx={{ fontWeight: 700, color: '#1f2937' }}>
+								Allow drivers to download documents
+							</Typography>
+							<Typography variant="caption" sx={{ display: 'block', color: '#64748b', lineHeight: 1.5 }}>
+								Shows a Download button beside each document in the GeoDocs Drive add-in. Turn it off
+								to let drivers view documents on their device without saving a copy.
+							</Typography>
+						</Box>
+						<Switch
+							checked={driverCanDownload}
+							onChange={(e) => setDriverCanDownload(e.target.checked)}
+							color="primary"
+							inputProps={{ 'aria-label': 'Allow drivers to download documents' }}
+						/>
+					</Box>
+					{fleetError && (
+						<Typography sx={{ color: '#E11D48', fontSize: 13, mt: 1.5 }}>{fleetError}</Typography>
+					)}
+				</DialogContent>
+				<DialogActions sx={{ px: { xs: 1.5, sm: 2.5 }, pb: 2.5, pt: 1.5, justifyContent: 'space-between' }}>
+					<Button
+						variant="outlined"
+						onClick={() => setFleetSettingsOpen(false)}
+						disabled={fleetSaving}
+						sx={{
+							textTransform: 'none',
+							fontWeight: 600,
+							borderRadius: '10px',
+							px: { xs: 2, sm: 3 },
+							borderColor: '#e5e7eb',
+							color: '#334155',
+							'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+						}}
+					>
+						Cancel
+					</Button>
+					<Button
+						variant="contained"
+						onClick={handleSaveFleetSettings}
+						disabled={fleetSaving}
+						startIcon={fleetSaving ? <Spinner size={18} /> : <SaveOutlinedIcon />}
+						sx={{
+							textTransform: 'none',
+							fontWeight: 600,
+							borderRadius: '10px',
+							px: { xs: 2, sm: 3 },
+							boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
+						}}
+					>
+						{fleetSaving ? 'Saving...' : 'Save Settings'}
+					</Button>
+				</DialogActions>
+			</Dialog>
+
+			<Dialog
 				open={uploaderOpen}
 				onClose={() => {
 					setUploaderOpen(false);
@@ -1005,7 +1245,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						setEditFile(null);
 					}
 				}}
-				maxWidth="lg"
+				// The edit form is a compact review of one document; only the upload flow needs
+				// the full width for its dropzone and three-column asset pickers.
+				maxWidth={editFile ? 'sm' : 'lg'}
 				fullWidth
 				// The group picker's dropdown panel renders at document.body (outside this
 				// dialog) so its search field can be focused/typed in without MUI's focus

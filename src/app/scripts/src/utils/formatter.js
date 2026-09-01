@@ -190,3 +190,20 @@ export const formatGeotabData = (
 	};
 };
 
+
+// Flattens the nested group tree (formatGroups output) into a depth-annotated list for
+// pickers that need one row per group. `depth` is the distance from the root — Company
+// Group is 0, and every other group hangs off it — which is what lets a per-group alert
+// rule be resolved "most specific wins" against a document's stored group names.
+export const flattenGroups = (groups, depth = 0, seen = new Set()) => {
+	const flat = [];
+	(Array.isArray(groups) ? groups : []).forEach((group) => {
+		if (!group || !group.label) return;
+		// The tree shares child objects between parents, so guard against re-listing one.
+		if (seen.has(group.label)) return;
+		seen.add(group.label);
+		flat.push({ label: group.label, value: group.value ?? group.label, depth });
+		flat.push(...flattenGroups(group.childrenList || [], depth + 1, seen));
+	});
+	return flat;
+};
