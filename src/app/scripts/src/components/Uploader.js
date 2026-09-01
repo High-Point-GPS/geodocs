@@ -797,6 +797,7 @@ const Uploader = ({
 
     const sectionCardSx = {
         width: '100%',
+        minWidth: 0,
         maxWidth: 720,
         mx: 'auto',
         mt: editMode ? 1.25 : 2,
@@ -1086,9 +1087,11 @@ const Uploader = ({
                     sx={{
                         display: 'flex',
                         flexDirection: editMode ? 'row' : 'column',
+                        flexWrap: 'wrap',
                         alignItems: 'center',
-                        gap: editMode ? 2 : 0,
+                        gap: editMode ? 1.5 : 0,
                         width: '100%',
+                        minWidth: 0,
                     }}
                 >
                 <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
@@ -1127,11 +1130,10 @@ const Uploader = ({
                     <Box
                         sx={{
                             width: '100%',
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'column', md: 'row' },
-                            justifyContent: 'center',
-                            gap: '1.5rem',
-                            px: '0.5rem',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                            gap: editMode ? 1.25 : '1.5rem',
+                            px: editMode ? 0 : '0.5rem',
                         }}
                     >
                         <AssociateSelect
@@ -1179,9 +1181,11 @@ const Uploader = ({
                         sx={{
                             display: 'flex',
                             flexDirection: editMode ? 'row' : 'column',
+                            flexWrap: 'wrap',
                             alignItems: editMode ? 'center' : 'stretch',
-                            gap: editMode ? 2 : 0,
+                            gap: editMode ? 1.5 : 0,
                             width: '100%',
+                            minWidth: 0,
                         }}
                     >
                     <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
@@ -1190,19 +1194,12 @@ const Uploader = ({
                     <Box
                         sx={{
                             width: '100%',
+                            minWidth: 0,
                             display: 'flex',
-                            flexDirection: {
-                                xs: 'column',
-                                sm: 'column',
-                                md: 'row',
-                            },
-                            alignItems: {
-                                xs: 'stretch',
-                                sm: 'stretch',
-                                md: 'flex-start',
-                            },
+                            flexWrap: 'wrap',
+                            alignItems: 'flex-start',
                             justifyContent: 'center',
-                            gap: '1rem',
+                            gap: 1.25,
                         }}
                     >
                         <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -1251,7 +1248,10 @@ const Uploader = ({
                                         : 'Press Space or Enter after each address.'
                                 }
                                 sx={{
-                                    width: { xs: '100%', sm: '100%', md: '340px' },
+                                    // Grows into whatever is left rather than claiming a
+                                    // fixed width the dialog may not have.
+                                    flex: '1 1 220px',
+                                    minWidth: 0,
                                 }}
                             />
                         ) : null}

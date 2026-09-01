@@ -87,7 +87,7 @@ const FileNameCell = ({ name, hideFromDriver }) => {
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        maxWidth: 240,
+                        maxWidth: '100%',
                     }}
                     title={name}
                 >
@@ -125,12 +125,10 @@ const ListCell = ({ value, archived, icon: Icon, dataKey }) => {
     const isArchived = (i) => Array.isArray(archived) && !!archived[i];
     const withMarker = (v, i) => (isArchived(i) ? `${v} (${archivedLabel(dataKey)})` : String(v));
     const shown = value.slice(0, 5);
-    // Cap the cell width so a row with many (or long-named) owners can't stretch its
-    // column. The table sits in an auto-layout container, so an uncapped nowrap cell
-    // would size the whole column to its widest row, push the table past the viewport,
-    // and force a horizontal scrollbar. The full list is always available on hover.
+    // Fills its column and ellipsises inside it — the table uses a fixed layout, so the
+    // column's share of the width is the cap. The full list is always available on hover.
     const inner = (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0, maxWidth: 220 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0, maxWidth: '100%' }}>
             {Icon ? <Icon sx={{ fontSize: 16, color: '#94a3b8', flexShrink: 0 }} /> : null}
             <Typography
                 sx={{
@@ -260,9 +258,9 @@ const ExpiryCell = ({ value }) => {
     const hasExpired = dayjs(value) < dayjs();
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
             <Typography sx={{ fontSize: 14, color: '#334155', whiteSpace: 'nowrap' }}>
-                {dayjs(value).format('MMMM D, YYYY')}
+                {dayjs(value).format('MMM D, YYYY')}
             </Typography>
             <StatusPill label={hasExpired ? 'Expired' : 'Active'} tone={hasExpired ? 'expired' : 'active'} />
         </Box>

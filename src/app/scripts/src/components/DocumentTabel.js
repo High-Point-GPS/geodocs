@@ -75,6 +75,20 @@ const columnIcons = {
     'Expiry Date': EventOutlinedIcon,
 };
 
+// Proportional column widths for the fixed table layout, keyed by display label —
+// they must add up to 100%. Action is sized to fit its three icon buttons; the owner
+// columns get the rest, since that is where long names live.
+const COLUMN_WIDTHS = {
+    File: '19%',
+    Type: '12%',
+    Groups: '10%',
+    Vehicles: '12%',
+    Drivers: '13%',
+    Trailers: '12%',
+    'Expiry Date': '12%',
+    Action: '10%',
+};
+
 const buildPages = (current, count) => {
     if (count <= 7) return Array.from({ length: count }, (_, i) => i);
     const pages = [0];
@@ -425,7 +439,7 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                 </Box>
 
                 <TableContainer sx={{ width: '100%' }}>
-                    <Table>
+                    <Table sx={{ tableLayout: 'fixed', width: '100%' }}>
                         <TableHead>
                             {/* Single header band: sortable column name + icon above each search box */}
                             <TableRow sx={{ bgcolor: '#fbfcfe' }}>
@@ -437,7 +451,10 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                                     const canSort = col.getCanSort();
                                     const canFilter = col.getCanFilter();
                                     return (
-                                        <TableCell key={header.id} sx={headCellSx}>
+                                        <TableCell
+                                            key={header.id}
+                                            sx={{ ...headCellSx, width: COLUMN_WIDTHS[label] || 'auto' }}
+                                        >
                                             <Box
                                                 onClick={canSort ? col.getToggleSortingHandler() : undefined}
                                                 sx={{
