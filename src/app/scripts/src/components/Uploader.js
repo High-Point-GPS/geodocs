@@ -1252,13 +1252,22 @@ const Uploader = ({
                             display: 'flex',
                             flexDirection: 'row',
                             flexWrap: 'wrap',
-                            alignItems: 'center',
+                            alignItems: 'flex-start',
                             gap: 1.5,
                             width: '100%',
                             minWidth: 0,
                         }}
                     >
-                    <Typography sx={{ ...sectionTitleSx, width: 'auto', flexShrink: 0 }}>
+                    <Typography
+                        sx={{
+                            ...sectionTitleSx,
+                            width: 'auto',
+                            flexShrink: 0,
+                            // Sits on the centre line of the 40px fields beside it, rather
+                            // than the centre of a block made taller by their helper text.
+                            mt: '12px',
+                        }}
+                    >
                         Expiration (optional)
                     </Typography>
                     <Box
