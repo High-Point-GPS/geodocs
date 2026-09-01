@@ -843,78 +843,50 @@ const Uploader = ({
                     sx={{
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
                         gap: '0.5rem',
-                        marginTop: '0.75rem',
+                        width: '100%',
+                        mt: 0.5,
                     }}
                 >
-                    {imagePreviewUrl ? (
-                        <Box
-                            component="img"
-                            src={imagePreviewUrl}
-                            alt={editName}
-                            sx={{
-                                maxHeight: 84,
-                                maxWidth: '100%',
-                                objectFit: 'contain',
-                                borderRadius: '10px',
-                                border: '1px solid #e5e7eb',
-                                bgcolor: '#f8fafc',
-                                p: 0.5,
-                            }}
-                        />
-                    ) : null}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            marginTop: '0.25rem',
-                            width: '100%',
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                width: '100%',
-                            }}
-                        >
-                            <TextField
-                                label="File Name"
-                                variant="outlined"
-                                value={editName}
-                                sx={{ width: { xs: '100%', sm: '95%', md: '85%' } }}
-                                onChange={(e) => setEditName(e.target.value)}
+                    {/* Thumbnail beside the name, not above it — stacking cost about a
+                        hundred vertical pixels for a preview that reads fine small. */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, width: '100%' }}>
+                        {imagePreviewUrl ? (
+                            <Box
+                                component="img"
+                                src={imagePreviewUrl}
+                                alt={editName}
+                                sx={{
+                                    width: 52,
+                                    height: 52,
+                                    flexShrink: 0,
+                                    objectFit: 'cover',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e5e7eb',
+                                    bgcolor: '#f8fafc',
+                                }}
                             />
-                            <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
-                                {fileExtension}
-                            </Typography>
-                        </Box>
+                        ) : null}
+                        <TextField
+                            label="File Name"
+                            variant="outlined"
+                            size="small"
+                            value={editName}
+                            sx={{ flex: 1, minWidth: 0 }}
+                            onChange={(e) => setEditName(e.target.value)}
+                        />
+                        <Typography sx={{ fontWeight: 'bold', minWidth: 'fit-content' }}>
+                            {fileExtension}
+                        </Typography>
                     </Box>
 
                     {/* Replace file: swap in a new version (e.g. a renewed document) without
                         losing this record, its associations, or alert settings. Folded behind
                         a link — most edits only touch the name, dates or associations. */}
-                    <Box sx={{ width: '100%', mt: 1 }}>
+                    <Box sx={{ width: '100%', mt: replaceOpen || fileReplaced ? 1 : 0 }}>
                         {!fileReplaced ? (
-                            !replaceOpen ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                    <Button
-                                        size="small"
-                                        onClick={() => setReplaceOpen(true)}
-                                        startIcon={<SwapHorizIcon fontSize="small" />}
-                                        sx={{ textTransform: 'none', fontWeight: 600, color: '#26477C' }}
-                                    >
-                                        Replace file
-                                    </Button>
-                                </Box>
-                            ) : (
+                            /* Collapsed, the Replace link lives on the visibility row below. */
+                            !replaceOpen ? null : (
                             <>
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                                     <Typography sx={sectionTitleSx}>Replace file (optional)</Typography>
@@ -1033,8 +1005,29 @@ const Uploader = ({
                 </Box>
             ) : null}
 
-            {/* Driver visibility — shown for both new uploads and edits */}
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: editMode ? 1 : 1.5 }}>
+            {/* Driver visibility — shown for both new uploads and edits. While editing it
+                shares its row with the Replace link, which keeps the dialog short enough
+                not to scroll. */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    mt: editMode ? 0.75 : 1.5,
+                }}
+            >
+                {editMode && !replaceOpen && !fileReplaced && (
+                    <Button
+                        size="small"
+                        onClick={() => setReplaceOpen(true)}
+                        startIcon={<SwapHorizIcon fontSize="small" />}
+                        sx={{ textTransform: 'none', fontWeight: 600, color: '#26477C', flexShrink: 0 }}
+                    >
+                        Replace file
+                    </Button>
+                )}
                 <Box
                     sx={{
                         display: 'flex',
@@ -1043,7 +1036,7 @@ const Uploader = ({
                         border: '1px solid #e5e7eb',
                         borderRadius: '12px',
                         px: 2,
-                        py: 0.75,
+                        py: 0.5,
                         bgcolor: '#f8fafc',
                     }}
                 >
@@ -1085,17 +1078,28 @@ const Uploader = ({
                     flexDirection: 'column',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    gap: '1rem',
+                    gap: editMode ? '0.5rem' : '1rem',
                 }}
             >
                 <Box sx={sectionCardSx}>
-                <Typography sx={sectionTitleSx}>Associations</Typography>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: editMode ? 'row' : 'column',
+                        alignItems: 'center',
+                        gap: editMode ? 2 : 0,
+                        width: '100%',
+                    }}
+                >
+                <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
+                    Associations
+                </Typography>
                 <RadioGroup
                     row
                     name="row-radio-buttons-group"
                     onChange={handleUpdateUploadType}
                     value={uploadType}
-                    sx={{ justifyContent: 'center', gap: 3, mb: 0.5 }}
+                    sx={{ justifyContent: 'center', gap: 3, mb: editMode ? 0 : 0.5, flex: 1 }}
                 >
                     <FormControlLabel
                         value="uploadGroup"
@@ -1108,6 +1112,7 @@ const Uploader = ({
                         label="Upload By Selection"
                     />
                 </RadioGroup>
+                </Box>
 
                 {uploadType === 'uploadGroup' ? (
                     <Box sx={{ width: { xs: '100%', md: '80%' } }}>
@@ -1170,7 +1175,18 @@ const Uploader = ({
                 </Box>{/* end Associations card */}
 
                 <Box sx={{ ...sectionCardSx, mb: 1 }}>
-                    <Typography sx={sectionTitleSx}>Expiration (optional)</Typography>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: editMode ? 'row' : 'column',
+                            alignItems: editMode ? 'center' : 'stretch',
+                            gap: editMode ? 2 : 0,
+                            width: '100%',
+                        }}
+                    >
+                    <Typography sx={{ ...sectionTitleSx, width: editMode ? 'auto' : '100%', flexShrink: 0 }}>
+                        Expiration (optional)
+                    </Typography>
                     <Box
                         sx={{
                             width: '100%',
@@ -1239,6 +1255,7 @@ const Uploader = ({
                                 }}
                             />
                         ) : null}
+                    </Box>
                     </Box>
                     {!expiryDate && (
                         <Typography variant="caption" sx={{ color: '#64748b', textAlign: 'center' }}>

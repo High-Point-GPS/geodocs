@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import {
+    Autocomplete,
     Box,
     Button,
     IconButton,
-    MenuItem,
     TextField,
     Tooltip,
     Typography,
@@ -98,45 +98,62 @@ const GroupAlertRules = ({ rules, onChange, groupData, globalEmail, globalDays }
                             }}
                         >
                             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                <TextField
-                                    select
-                                    size="small"
-                                    label="Group"
-                                    value={rule.group}
-                                    onChange={(e) => {
-                                        const picked = groupOptions.find((g) => g.label === e.target.value);
+                                {/* Searchable: a real fleet's group tree is far too long to
+                                    scroll, and the uploader's group picker already filters. */}
+                                <Autocomplete
+                                    options={groupOptions}
+                                    value={groupOptions.find((g) => g.label === rule.group) || null}
+                                    onChange={(_, picked) =>
                                         updateRule(index, {
-                                            group: e.target.value,
+                                            group: picked ? picked.label : '',
                                             groupId: picked ? String(picked.value) : null,
                                             depth: picked ? picked.depth : 0,
-                                        });
-                                    }}
-                                    sx={{ flex: 1, minWidth: 0, bgcolor: '#fff', borderRadius: '10px' }}
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <GroupsIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                                            </InputAdornment>
-                                        ),
-                                    }}
-                                >
-                                    {groupOptions.length === 0 && (
-                                        <MenuItem value="" disabled>
-                                            No groups available
-                                        </MenuItem>
-                                    )}
-                                    {groupOptions.map((group) => (
-                                        <MenuItem
-                                            key={`${group.value}-${group.label}`}
-                                            value={group.label}
-                                            // A group can only carry one rule; its own row stays selectable.
-                                            disabled={group.label !== rule.group && takenGroups.has(group.label)}
-                                            sx={{ pl: 2 + group.depth * 1.5 }}
+                                        })
+                                    }
+                                    getOptionLabel={(option) => (option && option.label) || ''}
+                                    isOptionEqualToValue={(option, value) => option.label === value.label}
+                                    // A group can only carry one rule; its own row stays selectable.
+                                    getOptionDisabled={(option) =>
+                                        option.label !== rule.group && takenGroups.has(option.label)
+                                    }
+                                    size="small"
+                                    fullWidth
+                                    autoHighlight
+                                    openOnFocus
+                                    noOptionsText="No matching groups"
+                                    sx={{ flex: 1, minWidth: 0 }}
+                                    renderOption={(props, option) => (
+                                        // Indented by depth so the tree's shape survives; the
+                                        // key must be unique even when two groups share a name.
+                                        <Box
+                                            component="li"
+                                            {...props}
+                                            key={`${option.value}-${option.label}-${option.depth}`}
+                                            sx={{ pl: `${16 + option.depth * 14}px !important` }}
                                         >
-                                            {group.label}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
+                                            {option.label}
+                                        </Box>
+                                    )}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Group"
+                                            placeholder="Search groups…"
+                                            sx={{ bgcolor: '#fff', borderRadius: '10px' }}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                startAdornment: (
+                                                    <>
+                                                        <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                                                            <GroupsIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                                        </InputAdornment>
+                                                        {params.InputProps.startAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                        />
+                                    )}
+                                />
                                 <TextField
                                     type="number"
                                     size="small"
