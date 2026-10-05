@@ -10,6 +10,9 @@
     X-Content-Type-Options = "nosniff"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
 
-    Access-Control-Allow-Origin = "https://my.geotab.com"
+    # MyGeotab fetches the add-in files from whichever host serves the database
+    # (my.geotab.com, mobilizz.geotab.com, other reseller domains), so a single
+    # fixed origin blocks every other host. These are public static assets.
+    Access-Control-Allow-Origin = "*"
 
     Content-Security-Policy = "frame-ancestors 'self' https://my.geotab.com;"
