@@ -18,6 +18,8 @@ import {
     Paper,
     IconButton,
     InputAdornment,
+    MenuItem,
+    Select,
 } from '@mui/material';
 
 import SearchIcon from '@mui/icons-material/Search';
@@ -47,14 +49,52 @@ import {
     flexRender,
 } from '@tanstack/react-table';
 
-import { columns, stringMatchFilter, globalStringFilter } from '../utils/tabel-helper';
+import { columns, stringMatchFilter, globalStringFilter, expiryState } from '../utils/tabel-helper';
 import { collapseCompanyGroup, resolveOwner } from '../utils/formatter';
 
 import { generateCSV } from '../utils/csv-generator';
 import { CSVLink } from 'react-csv';
-import dayjs from 'dayjs';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
+import MobileOffOutlinedIcon from '@mui/icons-material/MobileOffOutlined';
+import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
+
+// One-click views over the whole list, each with its live count. They replace the old
+// "Show Expired" button: 7 of 15 documents expired was otherwise only discoverable row
+// by row. `match` is applied to the table's data before the column filters.
+const QUICK_FILTERS = [
+    {
+        key: 'expired',
+        label: 'Expired',
+        icon: EventBusyOutlinedIcon,
+        tone: { fg: '#B91C1C', bg: '#FDECEA', border: '#f5c2c0' },
+        match: (f) => expiryState(f.expiryDate) === 'expired',
+    },
+    {
+        key: 'soon',
+        label: 'Expiring in 30 days',
+        icon: ScheduleOutlinedIcon,
+        tone: { fg: '#C2630B', bg: '#FEF3E2', border: '#f0d6b5' },
+        match: (f) => expiryState(f.expiryDate) === 'soon',
+    },
+    {
+        key: 'driver',
+        label: 'Added by drivers',
+        icon: PhoneIphoneOutlinedIcon,
+        tone: { fg: '#26477C', bg: '#eef2ff', border: '#c7d2fe' },
+        match: (f) => !!f.uploadedBy,
+    },
+    {
+        key: 'hidden',
+        label: 'Hidden from drivers',
+        icon: MobileOffOutlinedIcon,
+        tone: { fg: '#475569', bg: '#f1f5f9', border: '#e2e8f0' },
+        match: (f) => !!f.hideFromDriver,
+    },
+];
+
+const PAGE_SIZES = [10, 25, 50, 100];
 
 // Resolve a column's header to its plain text label (header defs are functions returning strings).
 const getHeaderLabel = (header) => {
@@ -104,7 +144,9 @@ const buildPages = (current, count) => {
 const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesChange }) => {
     const [columnFilters, setColumnFilters] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
-    const [showExpiredOnly, setShowExpiredOnly] = useState(false);
+    const [quickFilter, setQuickFilter] = useState(null);
+    // 25 a page: most fleets then see everything without paging.
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
 
     // Owner columns carry the display NAMES, so filtering, sorting, suggestions and the
     // CSV export all work on what the user sees. Whether each entry is archived rides
@@ -113,7 +155,7 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
     const formatData = (dataIds, priorNames, dataKey) => {
         if (!Array.isArray(dataIds)) return { labels: dataIds || [], archived: [] };
         const resolved = dataIds.map((id, i) =>
-            resolveOwner(id, Array.isArray(priorNames) ? priorNames[i] : undefined, geotabAssets)
+            resolveOwner(id, Array.isArray(priorNames) ? priorNames[i] : undefined, geotabAssets, dataKey)
         );
         return {
             labels: resolved.map((r) => r.label),
@@ -147,12 +189,18 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
         });
     }, [files, geotabAssets]);
 
-    // "Show Expired" filter: narrow to documents whose expiry date is in the past.
+    const quickCounts = useMemo(() => {
+        const counts = {};
+        QUICK_FILTERS.forEach((q) => {
+            counts[q.key] = displayFiles.filter(q.match).length;
+        });
+        return counts;
+    }, [displayFiles]);
+
     const tableData = useMemo(() => {
-        if (!showExpiredOnly) return displayFiles;
-        const now = dayjs();
-        return displayFiles.filter((f) => f.expiryDate && dayjs(f.expiryDate) < now);
-    }, [displayFiles, showExpiredOnly]);
+        const q = QUICK_FILTERS.find((f) => f.key === quickFilter);
+        return q ? displayFiles.filter(q.match) : displayFiles;
+    }, [displayFiles, quickFilter]);
 
     // Distinct values present in the visible rows, keyed by column label — these power
     // the autocomplete suggestions in both the global search box and each column's filter.
@@ -168,8 +216,9 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
         tableData.forEach((f) => {
             add(sets.File, f.fileName);
             add(sets.Type, f.documentType);
-            // Driver names are searchable in this column too (see typeFilter).
-            add(sets.Type, f.uploadedBy?.driverName || f.uploadedBy?.userName);
+            // Who added a driver upload shows under the file name, and the File filter
+            // matches it (see fileFilter).
+            add(sets.File, f.uploadedBy?.driverName || f.uploadedBy?.userName);
             Object.keys(ownerKinds).forEach((k) => {
                 const list = Array.isArray(f.owners?.[k]) ? f.owners[k] : [];
                 list.forEach((n) => add(sets[ownerKinds[k]], n));
@@ -203,7 +252,11 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
         state: {
             columnFilters,
             globalFilter,
+            pagination,
         },
+        onPaginationChange: setPagination,
+        // A filter that shrinks the list back to page 1 rather than an empty page 3.
+        autoResetPageIndex: true,
         onColumnFiltersChange: setColumnFilters,
         onGlobalFilterChange: setGlobalFilter,
         globalFilterFn: globalStringFilter,
@@ -229,12 +282,13 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
             return { id: f.id, value: String(f.value), label };
         });
     const hasGlobalFilter = String(globalFilter ?? '').length > 0;
-    const hasActiveFilters = activeFilters.length > 0 || hasGlobalFilter || showExpiredOnly;
+    const hasActiveFilters = activeFilters.length > 0 || hasGlobalFilter || !!quickFilter;
+    const activeQuick = QUICK_FILTERS.find((q) => q.key === quickFilter);
 
     const clearAllFilters = () => {
         setColumnFilters([]);
         setGlobalFilter('');
-        setShowExpiredOnly(false);
+        setQuickFilter(null);
     };
 
     // Report the filtered + sorted order (across all pages) so the preview's prev/next
@@ -381,22 +435,19 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                                     );
                                 })}
 
-                                {showExpiredOnly && (
+                                {activeQuick && (
                                     <Chip
                                         size="small"
-                                        icon={<EventBusyOutlinedIcon sx={{ fontSize: 15 }} />}
-                                        label="Expired"
-                                        onDelete={() => setShowExpiredOnly(false)}
+                                        icon={<activeQuick.icon sx={{ fontSize: 15 }} />}
+                                        label={activeQuick.label}
+                                        onDelete={() => setQuickFilter(null)}
                                         sx={{
-                                            bgcolor: '#FEF3E2',
-                                            color: '#C2630B',
+                                            bgcolor: activeQuick.tone.bg,
+                                            color: activeQuick.tone.fg,
                                             fontWeight: 600,
                                             borderRadius: '8px',
-                                            '& .MuiChip-icon': { color: '#C2630B' },
-                                            '& .MuiChip-deleteIcon': {
-                                                color: '#C2630B',
-                                                '&:hover': { color: '#9a4e08' },
-                                            },
+                                            '& .MuiChip-icon': { color: activeQuick.tone.fg },
+                                            '& .MuiChip-deleteIcon': { color: activeQuick.tone.fg },
                                         }}
                                     />
                                 )}
@@ -437,6 +488,59 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                         </Button>
                     </CSVLink>
                 </Box>
+
+                {/* At-a-glance counts, each a one-click view. Hidden while a count is 0. */}
+                {QUICK_FILTERS.some((q) => quickCounts[q.key] > 0) && (
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            px: 2,
+                            py: 1.25,
+                            borderBottom: '1px solid #eef2f7',
+                            bgcolor: '#fbfcfe',
+                        }}
+                    >
+                        <Typography sx={{ fontSize: 12.5, color: '#64748b', fontWeight: 600, mr: 0.5 }}>
+                            {displayFiles.length} document{displayFiles.length === 1 ? '' : 's'}
+                        </Typography>
+                        {QUICK_FILTERS.filter((q) => quickCounts[q.key] > 0).map((q) => {
+                            const active = quickFilter === q.key;
+                            const Icon = q.icon;
+                            return (
+                                <Box
+                                    key={q.key}
+                                    component="button"
+                                    type="button"
+                                    onClick={() => setQuickFilter(active ? null : q.key)}
+                                    aria-pressed={active}
+                                    sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 0.6,
+                                        px: 1.25,
+                                        py: 0.5,
+                                        borderRadius: '999px',
+                                        border: '1px solid',
+                                        borderColor: active ? q.tone.fg : q.tone.border,
+                                        bgcolor: active ? q.tone.fg : q.tone.bg,
+                                        color: active ? '#fff' : q.tone.fg,
+                                        fontFamily: 'inherit',
+                                        fontSize: 12.5,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        '&:hover': { borderColor: q.tone.fg },
+                                    }}
+                                >
+                                    <Icon sx={{ fontSize: 15 }} />
+                                    {quickCounts[q.key]} {q.label.toLowerCase()}
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                )}
 
                 <TableContainer sx={{ width: '100%' }}>
                     <Table sx={{ tableLayout: 'fixed', width: '100%' }}>
@@ -485,34 +589,6 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                                                     ))}
                                             </Box>
                                             {canFilter ? <Filter column={col} name={label} suggestions={columnSuggestions[label]} /> : null}
-                                            {col.id === 'action' && (
-                                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
-                                                    <Button
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowExpiredOnly((v) => !v);
-                                                        }}
-                                                        variant={showExpiredOnly ? 'contained' : 'outlined'}
-                                                        startIcon={<EventBusyOutlinedIcon sx={{ fontSize: 15 }} />}
-                                                        sx={{
-                                                            textTransform: 'none',
-                                                            fontWeight: 600,
-                                                            fontSize: 11.5,
-                                                            borderRadius: '8px',
-                                                            py: 0.25,
-                                                            px: 1,
-                                                            whiteSpace: 'nowrap',
-                                                            boxShadow: 'none',
-                                                            ...(showExpiredOnly
-                                                                ? { bgcolor: '#C2630B', color: '#fff', '&:hover': { bgcolor: '#9a4e08', boxShadow: 'none' } }
-                                                                : { borderColor: '#f0d6b5', color: '#C2630B', '&:hover': { borderColor: '#C2630B', bgcolor: '#FEF3E2' } }),
-                                                        }}
-                                                    >
-                                                        {showExpiredOnly ? 'Expired' : 'Show Expired'}
-                                                    </Button>
-                                                </Box>
-                                            )}
                                         </TableCell>
                                     );
                                 })}
@@ -568,9 +644,29 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                         borderTop: '1px solid #eef2f7',
                     }}
                 >
-                    <Typography sx={{ fontSize: 13.5, color: '#64748b' }}>
-                        Showing {start} to {end} of {total} results
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                        <Typography sx={{ fontSize: 13.5, color: '#64748b' }}>
+                            Showing {start} to {end} of {total} results
+                        </Typography>
+                        {total > PAGE_SIZES[0] && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <Typography sx={{ fontSize: 13, color: '#94a3b8' }}>Per page</Typography>
+                                <Select
+                                    size="small"
+                                    value={pageSize}
+                                    onChange={(e) => table.setPagination({ pageIndex: 0, pageSize: Number(e.target.value) })}
+                                    sx={{ fontSize: 13, borderRadius: '8px', '& .MuiSelect-select': { py: 0.5, pl: 1.25 } }}
+                                    inputProps={{ 'aria-label': 'Documents per page' }}
+                                >
+                                    {PAGE_SIZES.map((n) => (
+                                        <MenuItem key={n} value={n} sx={{ fontSize: 13 }}>
+                                            {n}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </Box>
+                        )}
+                    </Box>
 
                     {pageCount > 1 && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

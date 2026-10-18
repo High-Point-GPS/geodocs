@@ -169,7 +169,7 @@ const GroupSelect = ({ groupData, onUpdateData, uploadType, forceClear }) => {
 
     const valueTemplate = () => {
         if (disabled) {
-            return <span className="geodocs-placeholder">Switch to “Upload By Group” to choose groups</span>;
+            return <span className="geodocs-placeholder">Choose “Groups” above to attach by group</span>;
         }
         if (!selectedChips.length) {
             return <span className="geodocs-placeholder">Select groups…</span>;

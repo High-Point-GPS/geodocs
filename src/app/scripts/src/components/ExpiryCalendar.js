@@ -155,7 +155,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabAssets, onEdit
     // lists keep their name and get tagged "(Archived …)"; legacy documents that stored a
     // display name instead of an id render as-is.
     const ownerEntry = (id, savedName, kind) => {
-        const resolved = resolveOwner(id, savedName, geotabAssets);
+        const resolved = resolveOwner(id, savedName, geotabAssets, kind);
         return { text: ownerDisplay(resolved, kind), archived: resolved.archived };
     };
 

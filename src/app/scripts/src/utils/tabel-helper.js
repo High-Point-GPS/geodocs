@@ -8,8 +8,7 @@ import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import CloseIcon from '@mui/icons-material/Close';
+import MobileOffOutlinedIcon from '@mui/icons-material/MobileOffOutlined';
 import DirectionsCarOutlinedIcon from '@mui/icons-material/DirectionsCarOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
@@ -30,9 +29,28 @@ const FileTypeIcon = ({ kind, color, size = 18 }) => {
     return <InsertDriveFileOutlinedIcon sx={sx} />;
 };
 
-const FileNameCell = ({ name, hideFromDriver }) => {
+// Days from today (local calendar days) to a stored expiry date; negative once past.
+export const daysUntil = (value) =>
+    dayjs(value).startOf('day').diff(dayjs().startOf('day'), 'day');
+
+// Within this many days a document is called out as expiring soon.
+export const SOON_DAYS = 30;
+
+export const expiryState = (value) => {
+    if (value === null || value === undefined || value === '') return 'none';
+    const days = daysUntil(value);
+    if (days < 0) return 'expired';
+    if (days <= SOON_DAYS) return 'soon';
+    return 'active';
+};
+
+// The file's name, its kind, whether drivers can see it in the Drive app (a phone —
+// the eye icon is the Preview action, so it is not reused for this), and who added it
+// when a driver did.
+const FileNameCell = ({ name, hideFromDriver, uploadedBy }) => {
     const meta = getFileTypeMeta(name);
     const hidden = !!hideFromDriver;
+    const driverLabel = uploadedBy ? uploadedBy.driverName || uploadedBy.userName || 'a driver' : null;
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
             <Box
@@ -49,35 +67,6 @@ const FileNameCell = ({ name, hideFromDriver }) => {
             >
                 <FileTypeIcon kind={meta.kind} color={meta.color} />
             </Box>
-            <Tooltip title={hidden ? 'Hidden from driver' : 'Visible to driver'} arrow>
-                {hidden ? (
-                    <Box
-                        sx={{
-                            position: 'relative',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                        }}
-                    >
-                        <VisibilityIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                        <CloseIcon
-                            sx={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                fontSize: 18,
-                                color: '#DC2626',
-                                // White halo so the red X reads clearly over the eye lines.
-                                filter: 'drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)',
-                            }}
-                        />
-                    </Box>
-                ) : (
-                    <VisibilityIcon sx={{ fontSize: 17, color: '#1B7A3D', flexShrink: 0 }} />
-                )}
-            </Tooltip>
             <Box sx={{ minWidth: 0 }}>
                 <Typography
                     sx={{
@@ -93,7 +82,7 @@ const FileNameCell = ({ name, hideFromDriver }) => {
                 >
                     {name}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: '2px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: '2px', minWidth: 0 }}>
                     <Box
                         sx={{
                             px: 0.75,
@@ -104,10 +93,51 @@ const FileNameCell = ({ name, hideFromDriver }) => {
                             fontSize: 10.5,
                             fontWeight: 700,
                             letterSpacing: '0.03em',
+                            flexShrink: 0,
                         }}
                     >
                         {meta.label}
                     </Box>
+                    <Tooltip
+                        title={hidden ? 'Hidden from drivers in the Drive app' : 'Drivers can see this in the Drive app'}
+                        arrow
+                    >
+                        {hidden ? (
+                            <MobileOffOutlinedIcon
+                                aria-label="Hidden from drivers"
+                                sx={{ fontSize: 15, color: '#DC2626', flexShrink: 0 }}
+                            />
+                        ) : (
+                            <PhoneIphoneOutlinedIcon
+                                aria-label="Visible to drivers"
+                                sx={{ fontSize: 15, color: '#1B7A3D', flexShrink: 0 }}
+                            />
+                        )}
+                    </Tooltip>
+                    {driverLabel ? (
+                        <Tooltip title={`Added from the Drive app by ${driverLabel}`} arrow>
+                            <Box
+                                sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 0.4,
+                                    minWidth: 0,
+                                    px: 0.75,
+                                    py: '1px',
+                                    borderRadius: '5px',
+                                    bgcolor: '#f1f5f9',
+                                    color: '#475569',
+                                    fontSize: 10.5,
+                                    fontWeight: 600,
+                                }}
+                            >
+                                <PersonOutlinedIcon sx={{ fontSize: 12, flexShrink: 0 }} />
+                                <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    by {driverLabel}
+                                </Box>
+                            </Box>
+                        </Tooltip>
+                    ) : null}
                 </Box>
             </Box>
         </Box>
@@ -163,7 +193,8 @@ const ListCell = ({ value, archived, icon: Icon, dataKey }) => {
 
 const StatusPill = ({ label, tone }) => {
     const tones = {
-        expired: { bg: '#FEF3E2', color: '#C2630B' },
+        expired: { bg: '#FDECEA', color: '#B91C1C' },
+        soon: { bg: '#FEF3E2', color: '#C2630B' },
         active: { bg: '#E7F6EC', color: '#1B7A3D' },
     };
     const t = tones[tone] || tones.active;
@@ -186,67 +217,37 @@ const StatusPill = ({ label, tone }) => {
     );
 };
 
-// What the document is (the fleet's own document type), plus a marker when a driver
-// added it from the Drive add-in rather than an admin from here. Both are optional: a
-// document uploaded before types existed simply has neither.
-const TypeCell = ({ value, uploadedBy, description }) => {
+// What the document is, from the fleet's own list. (Who added it — when a driver did —
+// is shown under the file name instead, so it is not mistaken for a type.)
+const TypeCell = ({ value, description }) => {
     const label = String(value ?? '').trim();
-    const driverLabel = uploadedBy
-        ? uploadedBy.driverName || uploadedBy.userName || 'a driver'
-        : null;
-
-    if (!label && !driverLabel) {
+    if (!label) {
         return <Typography sx={{ color: '#cbd5e1' }}>—</Typography>;
     }
-
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, minWidth: 0 }}>
-            {label ? (
-                <Tooltip title={description || ''} arrow disableHoverListener={!description}>
-                    <Box
-                        sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            maxWidth: '100%',
-                            px: 0.9,
-                            py: '2px',
-                            borderRadius: '7px',
-                            bgcolor: '#eef2ff',
-                            color: '#3730a3',
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        <LabelOutlinedIcon sx={{ fontSize: 13, flexShrink: 0 }} />
-                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {label}
-                        </Box>
-                    </Box>
-                </Tooltip>
-            ) : null}
-            {driverLabel ? (
-                <Tooltip title={`Uploaded from the Drive app by ${driverLabel}`} arrow>
-                    <Box
-                        sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 0.4,
-                            maxWidth: '100%',
-                            color: '#64748b',
-                            fontSize: 11,
-                            fontWeight: 600,
-                        }}
-                    >
-                        <PhoneIphoneOutlinedIcon sx={{ fontSize: 12, flexShrink: 0 }} />
-                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {driverLabel}
-                        </Box>
-                    </Box>
-                </Tooltip>
-            ) : null}
-        </Box>
+        <Tooltip title={description || ''} arrow disableHoverListener={!description}>
+            <Box
+                sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    maxWidth: '100%',
+                    px: 0.9,
+                    py: '2px',
+                    borderRadius: '7px',
+                    bgcolor: '#eef2ff',
+                    color: '#3730a3',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    lineHeight: 1.6,
+                }}
+            >
+                <LabelOutlinedIcon sx={{ fontSize: 13, flexShrink: 0 }} />
+                <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {label}
+                </Box>
+            </Box>
+        </Tooltip>
     );
 };
 
@@ -255,14 +256,23 @@ const ExpiryCell = ({ value }) => {
         return <Typography sx={{ color: '#cbd5e1' }}>No expiry</Typography>;
     }
 
-    const hasExpired = dayjs(value) < dayjs();
+    const state = expiryState(value);
+    const days = daysUntil(value);
+    const label =
+        state === 'expired'
+            ? 'Expired'
+            : state === 'soon'
+                ? days === 0
+                    ? 'Expires today'
+                    : `${days} day${days === 1 ? '' : 's'} left`
+                : 'Active';
 
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.75 }}>
             <Typography sx={{ fontSize: 14, color: '#334155', whiteSpace: 'nowrap' }}>
                 {dayjs(value).format('MMM D, YYYY')}
             </Typography>
-            <StatusPill label={hasExpired ? 'Expired' : 'Active'} tone={hasExpired ? 'expired' : 'active'} />
+            <StatusPill label={label} tone={state} />
         </Box>
     );
 };
@@ -288,12 +298,20 @@ const ownersSort = (rowA, rowB, columnId) => {
     return a < b ? -1 : a > b ? 1 : 0;
 };
 
-// The Type column shows two things — the document type and who uploaded it — so its
-// filter has to search both, or filtering by a driver's name finds nothing.
+// The Type filter also searches the document's note, which the type's tooltip shows.
 const typeFilter = (row, columnId, filterValue) => {
     const needle = String(filterValue).toLowerCase();
+    return [row.getValue(columnId), row.original.description]
+        .filter((v) => v != null && v !== '')
+        .some((v) => String(v).toLowerCase().includes(needle));
+};
+
+// The File column shows who added a driver upload, so its filter matches that name too
+// ("File: max" finds everything that driver added).
+const fileFilter = (row, columnId, filterValue) => {
+    const needle = String(filterValue).toLowerCase();
     const uploadedBy = row.original.uploadedBy || {};
-    return [row.getValue(columnId), uploadedBy.driverName, uploadedBy.userName, row.original.description]
+    return [row.getValue(columnId), uploadedBy.driverName, uploadedBy.userName]
         .filter((v) => v != null && v !== '')
         .some((v) => String(v).toLowerCase().includes(needle));
 };
@@ -316,21 +334,17 @@ export const columns = [
             <FileNameCell
                 name={info.renderValue() || ''}
                 hideFromDriver={info.row.original.hideFromDriver}
+                uploadedBy={info.row.original.uploadedBy}
             />
         ),
-        filterFn: 'fuzzy',
+        filterFn: fileFilter,
         sortingFn: fuzzySort,
     }),
     columnHelper.accessor('documentType', {
         header: () => 'Type',
         cell: (info) => (
-            <TypeCell
-                value={info.renderValue()}
-                uploadedBy={info.row.original.uploadedBy}
-                description={info.row.original.description}
-            />
+            <TypeCell value={info.renderValue()} description={info.row.original.description} />
         ),
-        // Matches the driver's name too, so "Type: max" finds everything that driver added.
         filterFn: typeFilter,
         sortingFn: fuzzySort,
     }),
@@ -403,6 +417,11 @@ export const stringMatchFilter = (row, columnId, filterValue) => {
 };
 
 export const globalStringFilter = (row, _, filterValue) => {
+    const needle = String(filterValue).toLowerCase();
+    const uploadedBy = row.original.uploadedBy || {};
+    if ([uploadedBy.driverName, uploadedBy.userName].some((v) => v && String(v).toLowerCase().includes(needle))) {
+        return true;
+    }
     return row.getAllCells().some((cell) => {
         if (cell.column.id === 'action') return false;
         let cellValue = cell.getValue();

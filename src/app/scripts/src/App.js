@@ -15,6 +15,7 @@ import {
     FormControlLabel,
     InputAdornment,
     Switch,
+    Alert,
 } from '@mui/material';
 import dayjs from 'dayjs';
 
@@ -32,7 +33,7 @@ import GroupAlertRules from './components/GroupAlertRules';
 import DocumentTypesInput from './components/DocumentTypesInput';
 import Spinner from './components/Spinner';
 
-import { buildAssetIndex, formatGeotabData, getFileTypeMeta, isActiveAsset } from './utils/formatter';
+import { assetKey, buildAssetIndex, formatGeotabData, getFileTypeMeta, isActiveAsset } from './utils/formatter';
 
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import CloseIcon from '@mui/icons-material/Close';
@@ -143,6 +144,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	const [groupAlertRules, setGroupAlertRules] = useState([]);
 	// Fleet-wide options (gear button), separate from the expiry-alert dialog.
 	const [fleetSettingsOpen, setFleetSettingsOpen] = useState(false);
+	// Set when Fleet Settings is opened from the uploader's "Edit types", so the dialog
+	// lands on the document-type list instead of the driver toggles above it.
+	const [fleetFocusTypes, setFleetFocusTypes] = useState(false);
 	const [fleetSaving, setFleetSaving] = useState(false);
 	const [fleetError, setFleetError] = useState('');
 	const [driverCanDownload, setDriverCanDownload] = useState(true);
@@ -183,6 +187,18 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			if (!f.expiryDate) return false;
 			return dayjs(f.expiryDate).diff(now, 'day') <= threshold;
 		}).length;
+	}, [files, databaseConfig]);
+
+	// Documents with an expiry date whose reminder has nowhere to go: no address of their
+	// own, no global address, and no per-group rule with one. The alert job skips those
+	// silently (filesMissingEmail), so say so here instead. A group rule with an address
+	// might cover some of them; matching a document to its rule is the job's business,
+	// so any such rule means "not sure" and the warning stays quiet.
+	const unalertedCount = useMemo(() => {
+		if (splitEmails(databaseConfig?.alertEmail || '').length) return 0;
+		const rules = Array.isArray(databaseConfig?.groupAlertRules) ? databaseConfig.groupAlertRules : [];
+		if (rules.some((r) => r && splitEmails(r.emails || '').length)) return 0;
+		return files.filter((f) => f.expiryDate && !splitEmails(f.alertEmail || '').length).length;
 	}, [files, databaseConfig]);
 
 	// Stored rules use daysBeforeExpiry (number|null); the form keeps `days` as a string
@@ -237,6 +253,17 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				: [],
 		[databaseConfig]
 	);
+
+	// How many documents carry each type, including types not on the list (removed since,
+	// or typed by a driver as "Other") — Fleet Settings offers those as one-click adds.
+	const documentTypeUsage = useMemo(() => {
+		const counts = {};
+		files.forEach((f) => {
+			const t = typeof f.documentType === 'string' ? f.documentType.trim() : '';
+			if (t) counts[t] = (counts[t] || 0) + 1;
+		});
+		return counts;
+	}, [files]);
 
 	const seedFleetSettings = (config) => {
 		setDriverCanDownload(!config?.restrictDownload);
@@ -761,9 +788,10 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		// Names are stored plain: the "(Archived …)" marker is applied at render time, so it
 		// never gets written into a file's ownerNames. Arrays stay positionally aligned with
 		// `owners`. Groups are already stored by name.
-		const resolveList = (ids, prior) =>
+		// Looked up per kind: ids repeat across Geotab entity types (see buildAssetIndex).
+		const resolveList = (ids, prior, kind) =>
 			(ids || []).map((id, i) => {
-				const live = geotabAssets[id];
+				const live = kind ? geotabAssets[assetKey(kind, id)] : null;
 				if (live) return live.label;                   // current Geotab name wins
 				const prev = prior && prior[i];
 				if (prev != null && prev !== id) return prev;  // keep last-known-good name
@@ -774,9 +802,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			const o = file.owners || {};
 			const prior = file.ownerNames || {};
 			return {
-				vehicles: resolveList(o.vehicles, prior.vehicles),
-				drivers: resolveList(o.drivers, prior.drivers),
-				trailers: resolveList(o.trailers, prior.trailers),
+				vehicles: resolveList(o.vehicles, prior.vehicles, 'vehicles'),
+				drivers: resolveList(o.drivers, prior.drivers, 'drivers'),
+				trailers: resolveList(o.trailers, prior.trailers, 'trailers'),
 				groups: [...(o.groups || [])],
 			};
 		};
@@ -839,7 +867,9 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 	useEffect(() => {
 		function updateSize() {
-			setMobile(window.innerWidth < 1200);
+			// MyGeotab's own left menu takes ~250px, so a 1440px laptop leaves the add-in
+			// ~1190px — the table fits that comfortably. Cards only below 900.
+			setMobile(window.innerWidth < 900);
 		}
 		window.addEventListener('resize', updateSize);
 		updateSize();
@@ -922,7 +952,10 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 							boxShadow: '0 2px 6px rgba(38,71,124,0.25)',
 						}}
 					>
-						Upload Files
+						{/* Labels shorten on a phone so the header stays one tidy row. */}
+						<Box component="span" sx={{ whiteSpace: 'nowrap' }}>
+							Upload<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}> Files</Box>
+						</Box>
 					</Button>
 					<Tooltip title="View expiry dates on a calendar" arrow>
 						<Button
@@ -942,9 +975,15 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 								bgcolor: '#fff',
 								px: 2,
 								'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+								whiteSpace: 'nowrap',
+								minWidth: 0,
+								'& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 }, ml: { xs: 0, sm: -0.5 } },
 							}}
+							aria-label="Calendar"
 						>
-							Calendar
+							<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+								Calendar
+							</Box>
 						</Button>
 					</Tooltip>
 					<Tooltip title="Configure expiry email alerts" arrow>
@@ -961,9 +1000,15 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 								bgcolor: '#fff',
 								px: 2,
 								'&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+								whiteSpace: 'nowrap',
+								minWidth: 0,
+								'& .MuiButton-startIcon': { mr: { xs: 0, sm: 1 }, ml: { xs: 0, sm: -0.5 } },
 							}}
+							aria-label="Expiry Notifications"
 						>
-							Expiry Notifications
+							<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+								Expiry Notifications
+							</Box>
 						</Button>
 					</Tooltip>
 					<Tooltip title="Fleet settings" arrow>
@@ -1045,6 +1090,13 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 								startIcon={<MailOutlineIcon sx={{ fontSize: 18, color: '#94a3b8', ml: 0.5 }} />}
 								ariaLabel="Global alert email"
 							/>
+							{!splitEmails(globalAlertEmail).length &&
+								!groupAlertRules.some((r) => splitEmails(r.emails || '').length) && (
+									<Alert severity="warning" sx={{ mt: 1.25, borderRadius: '10px', py: 0.25 }}>
+										With no address here or on a group below, expiry reminders are not sent
+										to anyone — except for documents that have their own alert email.
+									</Alert>
+								)}
 						</Box>
 						<Box>
 							<Typography sx={{ fontWeight: 700, fontSize: 14.5, color: '#334155', mb: 0.75 }}>
@@ -1182,6 +1234,26 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				</Box>
 			) : (
 				<>
+					{unalertedCount > 0 && (
+						<Box sx={{ px: { xs: 1, md: 2 }, mb: 1.5 }}>
+							<Alert
+								severity="warning"
+								sx={{ borderRadius: '12px', alignItems: 'center' }}
+								action={
+									<Button
+										size="small"
+										onClick={() => setSettingsOpen(true)}
+										sx={{ textTransform: 'none', fontWeight: 700, color: '#9a4e08', whiteSpace: 'nowrap' }}
+									>
+										Set alert email
+									</Button>
+								}
+							>
+								{unalertedCount} document{unalertedCount === 1 ? ' has' : 's have'} an expiry date but no one
+								to remind — there is no alert email set.
+							</Alert>
+						</Box>
+					)}
 					{mobile ? (
 						<DocumentMobile
 							files={tableFiles}
@@ -1202,6 +1274,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			<Dialog
 				open={fleetSettingsOpen}
 				onClose={() => setFleetSettingsOpen(false)}
+				TransitionProps={{ onExited: () => setFleetFocusTypes(false) }}
 				maxWidth="sm"
 				fullWidth
 				scroll="paper"
@@ -1304,7 +1377,12 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						/>
 					</Box>
 					<Box sx={{ borderTop: '1px solid #eef2f7', pt: 2 }}>
-						<DocumentTypesInput value={documentTypes} onChange={setDocumentTypes} />
+						<DocumentTypesInput
+							value={documentTypes}
+							onChange={setDocumentTypes}
+							autoFocus={fleetFocusTypes}
+							inUse={documentTypeUsage}
+						/>
 					</Box>
 					{fleetError && (
 						<Typography sx={{ color: '#E11D48', fontSize: 13, mt: 1.5 }}>{fleetError}</Typography>
@@ -1429,6 +1507,10 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 						globalAlertEmail={databaseConfig?.alertEmail || ''}
 						documentTypes={savedDocumentTypes}
 						onAddDocumentType={handleAddDocumentType}
+						onEditDocumentTypes={() => {
+							setFleetFocusTypes(true);
+							setFleetSettingsOpen(true);
+						}}
 						geotabData={geotabData}
 						setGeotabData={setGeotabData}
 						geotabAssets={geotabAssets}

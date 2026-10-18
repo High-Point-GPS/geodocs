@@ -9,9 +9,6 @@ import {
     Tooltip,
     Alert,
     AlertTitle,
-    InputAdornment,
-    Autocomplete,
-    CircularProgress,
 } from '@mui/material';
 import {
     formatOptions,
@@ -26,8 +23,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Button } from '@mui/material';
 import FileDropzone from './FileDropzone';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import PhoneIphoneOutlinedIcon from '@mui/icons-material/PhoneIphoneOutlined';
+import MobileOffOutlinedIcon from '@mui/icons-material/MobileOffOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -38,7 +35,7 @@ import GroupSelect from './GroupSelect';
 import Spinner from './Spinner';
 import Popup from './Popup';
 import EmailChipsInput, { splitEmails } from './EmailChipsInput';
-import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
+import DocumentTypePicker from './DocumentTypePicker';
 
 // File types GeoDocs accepts (matches the backend validator). Setting these as the file
 // input's `accept` makes mobile pickers expose the Files/document picker (so PDFs and docs
@@ -76,6 +73,7 @@ const Uploader = ({
     globalAlertEmail = '',
     documentTypes = [],
     onAddDocumentType,
+    onEditDocumentTypes,
     geotabData: geotabDataProp,
     setGeotabData: setGeotabDataProp,
     geotabAssets = {},
@@ -105,6 +103,8 @@ const Uploader = ({
     const [editName, setEditName] = useState('');
     const [fileExtension, setFileExtension] = useState('');
     const [editLoad, setEditLoad] = useState(false);
+    // Set when the stored file could not be fetched; only matters for a rename.
+    const [editBytesError, setEditBytesError] = useState('');
     const [expiryDate, setExpiryDate] = useState(null);
     const [alertEmail, setAlertEmail] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -114,9 +114,6 @@ const Uploader = ({
     // Both optional here — a fleet that hasn't defined any types just doesn't see the field.
     const [documentType, setDocumentType] = useState('');
     const [description, setDescription] = useState('');
-    // Creating a type inline writes to the fleet config, so it can fail and has to say so.
-    const [addingType, setAddingType] = useState(false);
-    const [typeError, setTypeError] = useState('');
     // "Replace file" in the edit dialog: when the user picks a new file we swap it into
     // uploadFiles[0] and flag it, so the save sends the new bytes (editDocFile overwrites
     // the stored object in place, keeping the same record/associations/alerts). The original
@@ -385,16 +382,55 @@ const Uploader = ({
         setReplaceOpen(false);
     };
 
+    // The stored file as a File, for a rename or the thumbnail. Reads the signed Storage
+    // URL directly, and falls back to streaming it through readDocFile when the browser
+    // refuses the cross-origin read (a host the bucket's CORS rule does not cover, a
+    // corporate proxy) — that endpoint answers CORS for any origin.
+    const loadEditBytes = async (file) => {
+        const sessionInfo = {
+            database,
+            sessionId: session.sessionId,
+            userName: session.userName,
+            server,
+        };
+        const post = (endpoint, extra = {}) =>
+            fetch(`https://us-central1-geotabfiles.cloudfunctions.net/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify({ session: sessionInfo, filePath: file.path, fileName: file.fileName, ...extra }),
+            });
+        const failIfInvalid = async (response) => {
+            if (response.ok) return;
+            const data = await response.json().catch(() => ({}));
+            if (data.valid === false) onValidationError();
+            throw new Error(data.error || 'Could not load the file.');
+        };
+
+        let blob = null;
+        try {
+            const response = await post('readDocFileUrl', { responseMode: 'url' });
+            await failIfInvalid(response);
+            if ((response.headers.get('content-type') || '').includes('application/json')) {
+                const { url } = await response.json();
+                const stored = await fetch(url);
+                if (stored.ok) blob = await stored.blob();
+            } else {
+                blob = await response.blob();
+            }
+        } catch (err) {
+            blob = null;
+        }
+        if (!blob) {
+            const response = await post('readDocFile');
+            await failIfInvalid(response);
+            blob = await response.blob();
+        }
+        return new File([blob], file.fileName, { type: blob.type });
+    };
+
     const handeEditFile = async () => {
         setError('');
         setErrorTitle('');
-
-        if (uploadFiles.length <= 0) {
-            setError(
-                'Must have a file selected for upload. Please drop a file or select one above.'
-            );
-            return;
-        }
 
         if (!isThereUploadData()) {
             setErrorTitle('Add an association');
@@ -462,7 +498,20 @@ const Uploader = ({
             // overwrites the stored object in place when the name is unchanged, or repoints
             // the path (and deletes the old object) when the name/extension changed.
             if (fileNameChanged || fileReplaced) {
-                const file     = uploadFiles[0];
+                // A rename re-uploads the bytes under the new name; fetch them now if the
+                // background load has not finished (or failed and is worth one more try).
+                let file = uploadFiles[0];
+                if (!file) {
+                    try {
+                        file = await loadEditBytes(editFile);
+                        originalFileRef.current = file;
+                        setUploadFiles([file]);
+                    } catch (err) {
+                        throw new Error(
+                            'The file could not be loaded, so it cannot be renamed right now. Other changes can be saved with the original name.'
+                        );
+                    }
+                }
                 const base64   = await fileToBase64(file);
                 messageBody.fileData    = base64;
                 messageBody.contentType = file.type;
@@ -640,145 +689,85 @@ const Uploader = ({
         };
     };
 
+    // Everything the edit form shows comes from the table row (editFile) — the file's
+    // bytes are only needed to rename it (editDocFile re-uploads them under the new name)
+    // and for the image thumbnail. So the form opens at once from the row, and the bytes
+    // load behind it. It used to wait for the download and, if that failed, quietly
+    // showed an empty upload form instead.
     useEffect(() => {
-  if (editFile === null) return;
+        if (editFile === null) return undefined;
+        let cancelled = false;
 
-  const fetchEditFile = async () => {
-    try {
-      const sessionInfo = {
-        database,
-        sessionId: session.sessionId,
-        userName:  session.userName,
-        server,
-      };
-      const messageBody = {
-        session:  sessionInfo,
-        filePath: editFile.path,
-        fileName: editFile.fileName,
-        responseMode: 'url',
-      };
+        const owners = editFile.owners || {};
+        const dataVehicles = (owners.vehicles || []).map((v) => `${v}`);
+        const dataDrivers = (owners.drivers || []).map((d) => `${d}`);
+        const dataTrailers = (owners.trailers || []).map((t) => `${t}`);
+        const dataGroups = (owners.groups || []).map((g) => `${g}`);
 
-      setEditLoad(true);
-
-      const response = await fetch(
-        'https://us-central1-geotabfiles.cloudfunctions.net/readDocFileUrl',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json'
-          },
-          body: JSON.stringify(messageBody)
+        if (dataGroups.length === 0) {
+            setUploadType('uploadSelection');
+            setSelections({
+                vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets)],
+                drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets)],
+                trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets)],
+                groups: [...formatOptions(dataGroups)],
+            });
+        } else {
+            setUploadType('uploadGroup');
+            const newGroupData = [...geotabData.groups];
+            // Display-only collapse: if Company Group is among the stored groups, check just
+            // it in the picker. uploadData below keeps the full stored list, so saving
+            // without touching the tree preserves the file's tags exactly.
+            newGroupData.forEach((g) => setCheckedTrue(g, [...formatOptions(collapseCompanyGroup(dataGroups))]));
+            setGeotabData({ ...geotabData, groups: newGroupData });
         }
-      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.valid === false) {
-          onValidationError();
-        }
-        console.error('Failed to fetch edit file:', errorData.error || '');
-        return;
-      }
-
-      // New backend returns { url } (signed URL); legacy streams the bytes. We need the
-      // actual bytes to rebuild a File for the edit form, so in URL mode fetch the object
-      // directly from GCS (cross-origin GET — needs the bucket CORS config; see infra).
-      const contentType = response.headers.get('content-type') || '';
-      let blob;
-      if (contentType.includes('application/json')) {
-        const { url } = await response.json();
-        const fileResponse = await fetch(url);
-        if (!fileResponse.ok) {
-          console.error('Failed to download edit file from storage:', fileResponse.status);
-          return;
-        }
-        blob = await fileResponse.blob();
-      } else {
-        blob = await response.blob();
-      }
-      // Carry GCS's Content-Type so a later re-upload (on filename change) sends the right
-      // MIME type; the previous streamed path produced type: '' here.
-      const fileToEdit = new File([blob], editFile.fileName, { type: blob.type });
-
-      // Rehydrate your owners/tags state exactly as before.
-      // Older documents can come back without an owners object (or with missing keys).
-      const owners = editFile.owners || {};
-      const dataVehicles = (owners.vehicles || []).map(v => `${v}`);
-      const dataDrivers  = (owners.drivers  || []).map(d => `${d}`);
-      const dataTrailers = (owners.trailers || []).map(t => `${t}`);
-      const dataGroups   = (owners.groups   || []).map(g => `${g}`);
-
-      if (dataGroups.length === 0) {
-        setUploadType('uploadSelection');
-        setSelections({
-          vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabAssets)],
-          drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabAssets)],
-          trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabAssets)],
-          groups:   [...formatOptions(dataGroups)],
+        setUploadData({
+            vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets)],
+            drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets)],
+            trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets)],
+            groups: [...formatOptions(dataGroups)],
         });
-      } else {
-        setUploadType('uploadGroup');
-        const newGroupData = [...geotabData.groups];
-        // Display-only collapse: if Company Group is among the stored groups, check just
-        // it in the picker. uploadData below keeps the full stored list, so saving
-        // without touching the tree preserves the file's tags exactly.
-        newGroupData.forEach(g => setCheckedTrue(g, [...formatOptions(collapseCompanyGroup(dataGroups))]));
-        setGeotabData({ ...geotabData, groups: newGroupData });
-      }
 
-      setUploadData({
-        vehicles: [...matchGeotabData(dataVehicles,'vehicles',geotabData,geotabAssets)],
-        drivers:  [...matchGeotabData(dataDrivers,'drivers',geotabData,geotabAssets)],
-        trailers: [...matchGeotabData(dataTrailers,'trailers',geotabData,geotabAssets)],
-        groups:   [...formatOptions(dataGroups)],
-      });
+        const lastDotIndex = editFile.fileName.lastIndexOf('.');
+        const nameWithoutExt = lastDotIndex > 0 ? editFile.fileName.substring(0, lastDotIndex) : editFile.fileName;
+        const ext = lastDotIndex > 0 ? editFile.fileName.substring(lastDotIndex) : '';
+        setEditName(nameWithoutExt);
+        setFileExtension(ext);
+        originalExtRef.current = ext;
 
-      setUploadFiles([fileToEdit]);
-      // Keep the originally-loaded file so a pending "Replace" can be undone without refetching.
-      originalFileRef.current = fileToEdit;
-      setFileReplaced(false);
-      setReplaceOpen(false);
+        setExpiryDate(editFile.expiryDate ? dayjs(editFile.expiryDate) : null);
+        setAlertEmail(editFile.alertEmail || '');
+        setDriverCanView(!editFile.hideFromDriver);
+        // A stored type the admin has since removed from the list stays selectable, so
+        // saving an unrelated change doesn't silently drop it.
+        setDocumentType(editFile.documentType || '');
+        setDescription(editFile.description || '');
+        setFileReplaced(false);
+        setReplaceOpen(false);
+        setUploadFiles([]);
+        originalFileRef.current = null;
+        setEditBytesError('');
+        setEditMode(true);
 
-      // Extract extension and filename separately
-      const lastDotIndex = editFile.fileName.lastIndexOf('.');
-      const nameWithoutExt = lastDotIndex > 0 ? editFile.fileName.substring(0, lastDotIndex) : editFile.fileName;
-      const ext = lastDotIndex > 0 ? editFile.fileName.substring(lastDotIndex) : '';
+        // The bytes, in the background.
+        loadEditBytes(editFile)
+            .then((file) => {
+                if (cancelled) return;
+                originalFileRef.current = file;
+                // Only if the user has not already picked a replacement meanwhile.
+                setUploadFiles((current) => (current.length ? current : [file]));
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('Could not load the file for editing:', err);
+                setEditBytesError(err.message || 'Could not load the file.');
+            });
 
-      setEditName(nameWithoutExt);
-      setFileExtension(ext);
-      originalExtRef.current = ext;
-
-      if (editFile.expiryDate) {
-        setExpiryDate(dayjs(editFile.expiryDate));
-      } else {
-        setExpiryDate(null);
-      }
-
-            setAlertEmail(editFile.alertEmail || '');
-                        setDriverCanView(editFile.hideFromDriver ? false : true);
-      // A stored type the admin has since removed from the list would render as a blank
-      // Select; keep it selectable so saving an unrelated change doesn't silently drop it.
-      setDocumentType(editFile.documentType || '');
-      setDescription(editFile.description || '');
-
- 
-      setEditMode(true);
-
-      // scroll into view
-      document.getElementById('upload-area')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    } catch (err) {
-      console.error('Error in fetchEditFile:', err);
-    } finally {
-        setEditLoad(false);
-    }
-  };
-
-  fetchEditFile();
-}, [editFile]);
+        return () => {
+            cancelled = true;
+        };
+    }, [editFile]);
 
     // Build a small thumbnail when the selected/edited file is an image. Reuses the
     // already-fetched blob in uploadFiles[0], so no extra request is made.
@@ -885,6 +874,12 @@ const Uploader = ({
                             {fileExtension}
                         </Typography>
                     </Box>
+                    {editBytesError && !fileReplaced && (
+                        <Typography sx={{ fontSize: 12.5, color: '#9a4e08' }}>
+                            The file itself could not be loaded. Its details can still be changed;
+                            renaming it needs the file and will try again when you save.
+                        </Typography>
+                    )}
 
                     {/* Replace file: swap in a new version (e.g. a renewed document) without
                         losing this record, its associations, or alert settings. Folded behind
@@ -958,118 +953,24 @@ const Uploader = ({
                 </Box>
             )}
 
-            {/* What this document is, from the fleet's own list, plus an optional note.
-                Hidden entirely when no types are configured — an empty dropdown helps
-                nobody, and the field is optional from the web app either way. */}
-            {documentTypes.length > 0 || documentType || onAddDocumentType ? (
-                <Box
-                    sx={{
-                        width: '100%',
-                        display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: 1.25,
-                        mt: 1,
-                    }}
-                >
-                    <Autocomplete
-                        size="small"
-                        // A type stored on this file that the admin has since removed from
-                        // the list still appears, so saving cannot silently drop it.
-                        options={
-                            documentType && !documentTypes.includes(documentType)
-                                ? [documentType, ...documentTypes]
-                                : documentTypes
-                        }
-                        value={documentType || null}
-                        disabled={addingType}
-                        onChange={async (e, picked) => {
-                            setTypeError('');
-                            if (picked && typeof picked === 'object' && picked.addNew) {
-                                // Chose "Add …": create it on the fleet before selecting it,
-                                // so what gets saved on the document is a type that exists.
-                                setAddingType(true);
-                                try {
-                                    await onAddDocumentType(picked.value);
-                                    setDocumentType(picked.value);
-                                } catch (err) {
-                                    setTypeError(err.message || 'Could not add that type.');
-                                } finally {
-                                    setAddingType(false);
-                                }
-                                return;
-                            }
-                            setDocumentType(picked || '');
-                        }}
-                        getOptionLabel={(option) =>
-                            typeof option === 'string' ? option : `Add “${option.value}”`
-                        }
-                        isOptionEqualToValue={(option, value) => option === value}
-                        filterOptions={(options, params) => {
-                            const needle = params.inputValue.trim();
-                            const filtered = options.filter((o) =>
-                                o.toLowerCase().includes(needle.toLowerCase())
-                            );
-                            const exists = options.some(
-                                (o) => o.toLowerCase() === needle.toLowerCase()
-                            );
-                            // Offer to create it only when it is genuinely new.
-                            if (needle && !exists && onAddDocumentType) {
-                                filtered.push({ addNew: true, value: needle });
-                            }
-                            return filtered;
-                        }}
-                        renderOption={(props, option) => (
-                            <Box
-                                component="li"
-                                {...props}
-                                key={typeof option === 'string' ? option : `add-${option.value}`}
-                                sx={
-                                    typeof option === 'string'
-                                        ? undefined
-                                        : { fontWeight: 700, color: '#26477C' }
-                                }
-                            >
-                                {typeof option === 'string' ? option : `Add “${option.value}”`}
-                            </Box>
-                        )}
-                        sx={{ width: { xs: '100%', sm: 260 }, flexShrink: 0 }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Document type"
-                                placeholder={onAddDocumentType ? 'Select or type a new one…' : 'Select…'}
-                                error={!!typeError}
-                                helperText={typeError || ' '}
-                                InputProps={{
-                                    ...params.InputProps,
-                                    startAdornment: (
-                                        <>
-                                            <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
-                                                <LabelOutlinedIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
-                                            </InputAdornment>
-                                            {params.InputProps.startAdornment}
-                                        </>
-                                    ),
-                                    endAdornment: (
-                                        <>
-                                            {addingType ? <CircularProgress size={16} /> : null}
-                                            {params.InputProps.endAdornment}
-                                        </>
-                                    ),
-                                }}
-                            />
-                        )}
-                    />
-                    <TextField
-                        size="small"
-                        label="Notes (optional)"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        fullWidth
-                        inputProps={{ maxLength: 500 }}
-                    />
-                </Box>
-            ) : null}
+            {/* What this document is, from the fleet's own list, plus an optional note. */}
+            <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1.25 }}>
+                <DocumentTypePicker
+                    value={documentType}
+                    onChange={setDocumentType}
+                    types={documentTypes}
+                    onAddType={onAddDocumentType}
+                    onEditTypes={onEditDocumentTypes}
+                />
+                <TextField
+                    size="small"
+                    label="Notes (optional)"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    fullWidth
+                    inputProps={{ maxLength: 500 }}
+                />
+            </Box>
 
             {/* Driver visibility — shown for both new uploads and edits. While editing it
                 shares its row with the Replace link, which keeps the dialog short enough
@@ -1107,13 +1008,13 @@ const Uploader = ({
                     }}
                 >
                     {driverCanView ? (
-                        <VisibilityIcon sx={{ color: '#1B7A3D' }} fontSize="small" />
+                        <PhoneIphoneOutlinedIcon sx={{ color: '#1B7A3D' }} fontSize="small" />
                     ) : (
-                        <VisibilityOffIcon sx={{ color: '#94a3b8' }} fontSize="small" />
+                        <MobileOffOutlinedIcon sx={{ color: '#DC2626' }} fontSize="small" />
                     )}
-                    <Tooltip title="Choose whether the driver can see this document" arrow>
+                    <Tooltip title="Whether drivers see this document in the GeoDocs Drive app" arrow>
                         <Typography sx={{ fontWeight: 600, color: '#334155' }}>
-                            Visible to driver
+                            Visible to drivers
                         </Typography>
                     </Tooltip>
                     <RadioGroup
@@ -1160,7 +1061,7 @@ const Uploader = ({
                     }}
                 >
                 <Typography sx={{ ...sectionTitleSx, width: 'auto', flexShrink: 0 }}>
-                    Associations
+                    Attach to
                 </Typography>
                 <RadioGroup
                     row
@@ -1172,12 +1073,12 @@ const Uploader = ({
                     <FormControlLabel
                         value="uploadGroup"
                         control={<Radio />}
-                        label="Upload By Group"
+                        label="Groups"
                     />
                     <FormControlLabel
                         value="uploadSelection"
                         control={<Radio />}
-                        label="Upload By Selection"
+                        label="Specific vehicles, drivers & trailers"
                     />
                 </RadioGroup>
                 </Box>
@@ -1345,7 +1246,23 @@ const Uploader = ({
                         </Typography>
                     )}
                 </Box>
-                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                {/* Pinned to the bottom of the dialog's scroll area, so Upload / Save is
+                    always in view however tall the form gets. */}
+                <Box
+                    sx={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        position: 'sticky',
+                        bottom: -20,
+                        zIndex: 2,
+                        bgcolor: '#fff',
+                        borderTop: '1px solid #eef2f7',
+                        pt: 1.5,
+                        pb: 2.5,
+                        mt: 0.5,
+                    }}
+                >
                     {loading ? (
                         <Spinner />
                     ) : (

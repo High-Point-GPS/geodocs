@@ -56,19 +56,25 @@ export const isActiveAsset = (asset) => {
 // take the active subset, but display names are resolved from ALL of it, so a document
 // attached to a since-archived asset still shows that asset's name instead of a raw id.
 // Geotab ids are unique across types, so one flat map covers vehicles, trailers, drivers.
+// Keyed "<kind>:<id>". Geotab ids are only unique within one entity type — device b4 and
+// user b4 are different things, and both exist on real databases — so a bare-id index
+// let a vehicle borrow a driver's name (belzmtl showed vehicle "14" as "Israel
+// Margulies", and the name sync then wrote that onto the document).
+export const assetKey = (kind, id) => `${kind}:${id}`;
+
 export const buildAssetIndex = (devices = [], drivers = []) => {
 	const assetIndex = {};
 	devices.forEach((d) => {
-		if (d && d.id && d.name) assetIndex[d.id] = { label: `${d.name}`, archived: !isActiveAsset(d) };
+		if (d && d.id && d.name) assetIndex[assetKey('vehicles', d.id)] = { label: `${d.name}`, archived: !isActiveAsset(d) };
 	});
 	drivers.forEach((d) => {
-		if (d && d.id) assetIndex[d.id] = { label: `${d.firstName} ${d.lastName}`, archived: !isActiveAsset(d) };
+		if (d && d.id) assetIndex[assetKey('drivers', d.id)] = { label: `${d.firstName} ${d.lastName}`, archived: !isActiveAsset(d) };
 	});
 	return assetIndex;
 };
 
-// Geotab entity ids are a type letter plus an opaque token — devices and trailers "b…",
-// users "u…" — never anything with a space. Used only to tell an id apart from a display
+// Geotab entity ids are a type letter plus an opaque token ("b4", "b23D", "u…") — never
+// anything with a space. Used only to tell an id apart from a display
 // name on documents that predate the id migration.
 const GEOTAB_ID_SHAPE = /^[bu][0-9A-Za-z]{1,15}$/;
 
@@ -80,8 +86,10 @@ const GEOTAB_ID_SHAPE = /^[bu][0-9A-Za-z]{1,15}$/;
 //     asset: either the stored name differs from the raw entry, or the entry is id-shaped
 //   - legacy document that stored a display name instead of an id -> itself, unflagged,
 //     since a plain name is no evidence that anything was archived
-export const resolveOwner = (entry, savedName, assetIndex) => {
-	const hit = assetIndex && assetIndex[entry];
+// `kind` is the owner column (vehicles / drivers / trailers). Trailers are not in the
+// index, so they always resolve through the name stored on the file.
+export const resolveOwner = (entry, savedName, assetIndex, kind) => {
+	const hit = assetIndex && kind ? assetIndex[assetKey(kind, entry)] : null;
 	if (hit) return { label: hit.label, archived: !!hit.archived };
 	const saved = savedName != null && savedName !== '' ? String(savedName) : null;
 	const raw = String(entry);
@@ -106,7 +114,7 @@ export const matchGeotabData = (dataIds, dataKey, geotabData, assetIndex) => {
 	const matchedData = dataIds.map((id) => {
 		const data = geotabData[dataKey].find((d) => d.value === id);
 		if (data) return data;
-		const resolved = resolveOwner(id, null, assetIndex);
+		const resolved = resolveOwner(id, null, assetIndex, dataKey);
 		return { label: resolved.label, value: id, archived: resolved.archived };
 })
 return matchedData;
