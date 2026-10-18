@@ -139,7 +139,7 @@ const Uploader = ({
             };
 
             const response = await fetch(
-                'https://us-central1-geotabfiles.cloudfunctions.net/deleteDocFile',
+                'https://portal.highpointgps.com/api/geodocs/deleteDocFile',
                 {
                     method: 'POST',
                     headers: {
@@ -394,7 +394,7 @@ const Uploader = ({
             server,
         };
         const post = (endpoint, extra = {}) =>
-            fetch(`https://us-central1-geotabfiles.cloudfunctions.net/${endpoint}`, {
+            fetch(`https://portal.highpointgps.com/api/geodocs/${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify({ session: sessionInfo, filePath: file.path, fileName: file.fileName, ...extra }),
@@ -518,7 +518,7 @@ const Uploader = ({
             }
 
              const response = await fetch(
-                'https://us-central1-geotabfiles.cloudfunctions.net/editDocFile',
+                'https://portal.highpointgps.com/api/geodocs/editDocFile',
                 {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -662,7 +662,7 @@ const Uploader = ({
         };
 
          const response = await fetch(
-            'https://us-central1-geotabfiles.cloudfunctions.net/uploadDocFile',
+            'https://portal.highpointgps.com/api/geodocs/uploadDocFile',
             {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

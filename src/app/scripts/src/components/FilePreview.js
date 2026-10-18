@@ -26,7 +26,7 @@ import PdfCanvas from './PdfCanvas';
 
 // readDocFileUrl validates the Geotab session + tenant, then returns a short-lived
 // signed URL so the file loads directly from GCS (not streamed through the function).
-const READ_ENDPOINT = 'https://us-central1-geotabfiles.cloudfunctions.net/readDocFileUrl';
+const READ_ENDPOINT = 'https://portal.highpointgps.com/api/geodocs/readDocFileUrl';
 
 // Re-opening the same file (e.g. paging prev/next back to one just viewed) reuses its
 // signed URL within this window instead of calling the function again — and because the

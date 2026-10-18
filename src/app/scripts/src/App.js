@@ -393,7 +393,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			};
 
 			const response = await fetch(
-				'https://us-central1-geotabfiles.cloudfunctions.net/editGlobalAlertSettings',
+				'https://portal.highpointgps.com/api/geodocs/editGlobalAlertSettings',
 				{
 					method: 'POST',
 					headers: {
@@ -444,7 +444,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		const next = [...savedDocumentTypes, trimmed];
 
 		const response = await fetch(
-			'https://us-central1-geotabfiles.cloudfunctions.net/editFleetSettings',
+			'https://portal.highpointgps.com/api/geodocs/editFleetSettings',
 			{
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -488,7 +488,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			};
 
 			const response = await fetch(
-				'https://us-central1-geotabfiles.cloudfunctions.net/editFleetSettings',
+				'https://portal.highpointgps.com/api/geodocs/editFleetSettings',
 				{
 					method: 'POST',
 					headers: {
@@ -580,7 +580,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 		}
 
 
-		const configResponse = await fetch('https://us-central1-geotabfiles.cloudfunctions.net/updateLegacyData',
+		const configResponse = await fetch('https://portal.highpointgps.com/api/geodocs/updateLegacyData',
 		{
 			method: 'POST',
 			headers: {
@@ -626,8 +626,8 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				body: JSON.stringify(messageBody)
 			};
 			const [configResponse, response] = await Promise.all([
-				fetch('https://us-central1-geotabfiles.cloudfunctions.net/getDatabaseConfig', requestInit),
-				fetch('https://us-central1-geotabfiles.cloudfunctions.net/fetchDocumentsForDatabase', requestInit),
+				fetch('https://portal.highpointgps.com/api/geodocs/getDatabaseConfig', requestInit),
+				fetch('https://portal.highpointgps.com/api/geodocs/fetchDocumentsForDatabase', requestInit),
 			]);
 
 			const config = await configResponse.json();
@@ -854,7 +854,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			server,
 		};
 
-		fetch('https://us-central1-geotabfiles.cloudfunctions.net/syncOwnerNames', {
+		fetch('https://portal.highpointgps.com/api/geodocs/syncOwnerNames', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ session: sessionInfo, database, updates }),

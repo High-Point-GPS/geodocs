@@ -22,7 +22,7 @@ const FileActions = ({ fileData, fileId, database, session, server, onEditFile, 
 			};
 
 			const response = await fetch(
-				'https://us-central1-geotabfiles.cloudfunctions.net/deleteDocFile',
+				'https://portal.highpointgps.com/api/geodocs/deleteDocFile',
 				{
 					method: 'POST',
 					headers: {

@@ -31,7 +31,7 @@ const handleButtonClick = async (buttonValue, api) => {
     } else if (buttonValue === 'Accept') {
         try {
             // Replace with your actual Firebase endpoint URL
-            const endpoint = 'https://us-central1-geotabfiles.cloudfunctions.net/addEulaUser';
+            const endpoint = 'https://portal.highpointgps.com/api/geodocs/addEulaUser';
 
             // Get session info if not already available
             const session = sessionInfo.sessionId || (await new Promise(resolve => {
