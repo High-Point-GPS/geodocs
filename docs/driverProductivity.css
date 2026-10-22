@@ -1,7 +1,7 @@
 #HPGPS .dropdown-content {
   z-index: 50 !important;
 }
-:root {
+:root:where(:has(#HPGPS)) {
   font-family: "Inter var", sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   font-variation-settings: normal;
@@ -70,7 +70,7 @@
   font-named-instance: "Italic";
   src: url(e295f70fe3e2df296c7b.woff2) format("woff2");
 }
-:root {
+:root:where(:has(#HPGPS)) {
   --blue-50:#f5f9ff;
   --blue-100:#d0e1fd;
   --blue-200:#abc9fb;
@@ -293,7 +293,7 @@
 }
 
 @layer primereact {
-  * {
+  :where(body:has(#HPGPS)) * {
     box-sizing: border-box;
   }
   .p-component {
@@ -1383,16 +1383,16 @@
   .p-icon-field-right > .p-inputtext {
     padding-right: 2.5rem;
   }
-  ::-webkit-input-placeholder {
+  :where(body:has(#HPGPS)) ::-webkit-input-placeholder {
     color: #6b7280;
   }
-  :-moz-placeholder {
+  :where(body:has(#HPGPS)) :-moz-placeholder {
     color: #6b7280;
   }
-  ::-moz-placeholder {
+  :where(body:has(#HPGPS)) ::-moz-placeholder {
     color: #6b7280;
   }
-  :-ms-input-placeholder {
+  :where(body:has(#HPGPS)) :-ms-input-placeholder {
     color: #6b7280;
   }
   .p-input-filled .p-inputtext {
@@ -3091,11 +3091,7 @@
   .p-speeddial-quarter-circle .p-speeddial-item {
     margin: 0;
   }
-  .p-speeddial-circle .p-speeddial-item:first-child, .p-speeddial-circle .p-speeddial-item:last-child,
-  .p-speeddial-semi-circle .p-speeddial-item:first-child,
-  .p-speeddial-semi-circle .p-speeddial-item:last-child,
-  .p-speeddial-quarter-circle .p-speeddial-item:first-child,
-  .p-speeddial-quarter-circle .p-speeddial-item:last-child {
+  .p-speeddial-circle .p-speeddial-item:first-child, .p-speeddial-circle .p-speeddial-item:last-child, .p-speeddial-semi-circle .p-speeddial-item:first-child, .p-speeddial-semi-circle .p-speeddial-item:last-child, .p-speeddial-quarter-circle .p-speeddial-item:first-child, .p-speeddial-quarter-circle .p-speeddial-item:last-child {
     margin: 0;
   }
   .p-speeddial-mask {
@@ -3321,7 +3317,8 @@
     background: #f9fafb;
   }
   .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-datatable-table > .p-datatable-thead,
-  .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-datatable-table > .p-datatable-tfoot, .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-virtualscroller > .p-datatable-table > .p-datatable-thead,
+  .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-datatable-table > .p-datatable-tfoot,
+  .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-virtualscroller > .p-datatable-table > .p-datatable-thead,
   .p-datatable.p-datatable-scrollable > .p-datatable-wrapper > .p-virtualscroller > .p-datatable-table > .p-datatable-tfoot {
     background-color: #f9fafb;
   }
@@ -5234,12 +5231,14 @@
     height: 4rem;
   }
   .p-dock.p-dock-top .p-dock-item-second-prev,
-  .p-dock.p-dock-top .p-dock-item-second-next, .p-dock.p-dock-bottom .p-dock-item-second-prev,
+  .p-dock.p-dock-top .p-dock-item-second-next,
+  .p-dock.p-dock-bottom .p-dock-item-second-prev,
   .p-dock.p-dock-bottom .p-dock-item-second-next {
     margin: 0 0.9rem;
   }
   .p-dock.p-dock-top .p-dock-item-prev,
-  .p-dock.p-dock-top .p-dock-item-next, .p-dock.p-dock-bottom .p-dock-item-prev,
+  .p-dock.p-dock-top .p-dock-item-next,
+  .p-dock.p-dock-bottom .p-dock-item-prev,
   .p-dock.p-dock-bottom .p-dock-item-next {
     margin: 0 1.3rem;
   }
@@ -5247,12 +5246,14 @@
     margin: 0 1.5rem;
   }
   .p-dock.p-dock-left .p-dock-item-second-prev,
-  .p-dock.p-dock-left .p-dock-item-second-next, .p-dock.p-dock-right .p-dock-item-second-prev,
+  .p-dock.p-dock-left .p-dock-item-second-next,
+  .p-dock.p-dock-right .p-dock-item-second-prev,
   .p-dock.p-dock-right .p-dock-item-second-next {
     margin: 0.9rem 0;
   }
   .p-dock.p-dock-left .p-dock-item-prev,
-  .p-dock.p-dock-left .p-dock-item-next, .p-dock.p-dock-right .p-dock-item-prev,
+  .p-dock.p-dock-left .p-dock-item-next,
+  .p-dock.p-dock-right .p-dock-item-prev,
   .p-dock.p-dock-right .p-dock-item-next {
     margin: 1.3rem 0;
   }
@@ -5281,15 +5282,18 @@
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-top .p-dock-item-second-next,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-top .p-dock-item-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-top .p-dock-item-next,
-  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-top .p-dock-item-current, .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-second-prev,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-top .p-dock-item-current,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-second-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-second-next,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-next,
-  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-current, .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-second-prev,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-bottom .p-dock-item-current,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-second-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-second-next,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-next,
-  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-current, .p-dock.p-dock-mobile.p-dock-magnification.p-dock-right .p-dock-item-second-prev,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-left .p-dock-item-current,
+  .p-dock.p-dock-mobile.p-dock-magnification.p-dock-right .p-dock-item-second-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-right .p-dock-item-second-next,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-right .p-dock-item-prev,
   .p-dock.p-dock-mobile.p-dock-magnification.p-dock-right .p-dock-item-next,
@@ -8987,10 +8991,6 @@
   src: url(d89b03c583b9adb99987.woff2) format('woff2'), url(07df2eed1529fcdb5f74.woff) format('woff');
   unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
 }
-.tag{background-color:#f4f4f4;border:1px solid #e9e9e9;padding:2px 0 2px 2px;border-radius:2px;display:inline-block}.tag:focus-within{background-color:#e9e9e9;border-color:#a0a0a0}.tag-remove{color:#a0a0a0;font-size:75%;line-height:100%;cursor:pointer;background-color:transparent;border:none;outline:none}.tag-remove.disabled,.tag-remove.readOnly{cursor:not-allowed}.tag-remove:focus{color:#3c3c3c}
-.node>label{cursor:pointer;margin-left:2px}.tag-list{display:inline;padding:0;margin:0}.tag-item{display:inline-block;margin:4px}.tag-item .search{border:none;border-bottom:1px solid #ccc;outline:none}.tag-item:last-child{margin-right:4px}
-.node{list-style:none;white-space:nowrap;padding:4px}.node.leaf.collapsed{display:none}.node.disabled>*{color:gray;cursor:not-allowed}.node.match-in-children.hide .node-label{opacity:.5}.node.focused{background-color:#f4f4f4}.toggle{white-space:pre;margin-right:4px;cursor:pointer}.toggle:after{content:" "}.toggle.collapsed:after{content:"+"}.toggle.expanded:after{content:"-"}.searchModeOn .toggle{display:none}.checkbox-item,.radio-item{vertical-align:middle;margin:0 4px 0 0}.checkbox-item.simple-select,.radio-item.simple-select{display:none}
-.hide:not(.match-in-children){display:none}.react-dropdown-tree-select .dropdown{position:relative;display:table}.react-dropdown-tree-select .dropdown .dropdown-trigger{padding:4px;line-height:20px;max-height:200px;display:inline-block;overflow:auto;border:1px solid #b9b9b9}.react-dropdown-tree-select .dropdown .dropdown-trigger.arrow{cursor:pointer}.react-dropdown-tree-select .dropdown .dropdown-trigger.arrow.bottom:after{content:"\25BC";vertical-align:middle;color:#3c3c3c;margin-right:2px}.react-dropdown-tree-select .dropdown .dropdown-trigger.arrow.top:after{content:"\25B2";vertical-align:middle;color:#3c3c3c;margin-right:2px}.react-dropdown-tree-select .dropdown .dropdown-trigger.arrow.disabled{cursor:not-allowed}.react-dropdown-tree-select .dropdown .dropdown-trigger.arrow.disabled.bottom:after{color:#b9b9b9}.react-dropdown-tree-select .dropdown .dropdown-content{position:absolute;padding:4px;z-index:1;background:#fff;border-top:1px solid rgba(0,0,0,.05);-webkit-box-shadow:0 5px 8px rgba(0,0,0,.15);box-shadow:0 5px 8px rgba(0,0,0,.15)}.react-dropdown-tree-select .dropdown .dropdown-content .search{width:100%;border:none;border-bottom:1px solid #ccc;outline:none}.react-dropdown-tree-select .dropdown .dropdown-content ul{margin:0;padding:0}
 #HPGPS .hidden {
   display: none;
 }

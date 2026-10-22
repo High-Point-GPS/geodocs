@@ -64,7 +64,24 @@ import DocumentMobile from './components/DocumentMobile';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import GlobalStyles from '@mui/material/GlobalStyles';
+import { html as baselineHtml, body as baselineBody } from '@mui/material/CssBaseline/CssBaseline';
+
+// MUI's CssBaseline, limited to the time GeoDocs is on screen. MyGeotab keeps every add-in's
+// CSS loaded for the whole page but removes our DOM when the user leaves, so `:has(#HPGPS)`
+// keeps these html/body rules off every other page. `:where()` keeps the original specificity.
+const ON_PAGE = ':where(:has(#HPGPS))';
+const IN_PAGE = ':where(body:has(#HPGPS))';
+const pageBaseline = (t) => ({
+	[`html${ON_PAGE}`]: baselineHtml(t),
+	[`${IN_PAGE} *, ${IN_PAGE} *::before, ${IN_PAGE} *::after`]: { boxSizing: 'inherit' },
+	[`${IN_PAGE} :is(strong, b)`]: { fontWeight: t.typography.fontWeightBold },
+	[`body${ON_PAGE}`]: {
+		margin: 0,
+		...baselineBody(t),
+		'&::backdrop': { backgroundColor: t.palette.background.default },
+	},
+});
 
 const theme = createTheme({
   palette: {
@@ -897,7 +914,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 
 	return (
 	<ThemeProvider theme={theme}>
-      <CssBaseline />
+		<GlobalStyles styles={pageBaseline} />
 		<Box sx={{ flexGrow: 1, bgcolor: '#f8fafc', minHeight: '100vh' }}>
 			{/* Header */}
 			<Box

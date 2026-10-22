@@ -83,6 +83,8 @@ module.exports = merge(common, {
 						},
 					},
 					'css-loader',
+					// Page-wide theme rules only apply while GeoDocs is on screen (see the loader).
+					'./src/.dev/loaders/css-page-scope/css-page-scope.js',
 				],
 			},
 			{
