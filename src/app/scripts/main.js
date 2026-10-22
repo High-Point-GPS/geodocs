@@ -149,7 +149,7 @@ geotab.addin.hpgpsFilemanager = function () {
             // getting the current user to display in the UI
             const mount = (session, server) => {
                 // show main content
-                const container = document.getElementById('app');
+                const container = document.getElementById('hpgpsFilemanager-app');
                 if (!container) return;
 
                 container.style.display = 'block';
