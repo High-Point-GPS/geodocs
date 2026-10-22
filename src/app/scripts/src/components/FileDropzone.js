@@ -13,7 +13,8 @@ const formatBytes = (bytes) => {
 
 // Native drag-and-drop file picker (no third-party UI). Emits
 // items: { filename, file } so the rest of the upload flow is unchanged.
-const FileDropzone = ({ files = [], onChange, multiple = true, accept }) => {
+// `showList={false}` when the caller lists the chosen files itself (bulk upload).
+const FileDropzone = ({ files = [], onChange, multiple = true, accept, showList = true }) => {
     const inputRef = useRef(null);
     const [dragOver, setDragOver] = useState(false);
 
@@ -113,7 +114,7 @@ const FileDropzone = ({ files = [], onChange, multiple = true, accept }) => {
                 />
             </Box>
 
-            {files.length > 0 && (
+            {showList && files.length > 0 && (
                 <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
                     {files.map((item, idx) => (
                         <Box

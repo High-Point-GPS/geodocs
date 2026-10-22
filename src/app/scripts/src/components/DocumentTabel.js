@@ -20,7 +20,12 @@ import {
     InputAdornment,
     MenuItem,
     Select,
+    Menu,
+    Checkbox,
+    Divider,
+    Tooltip,
 } from '@mui/material';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 import SearchIcon from '@mui/icons-material/Search';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
@@ -129,6 +134,26 @@ const COLUMN_WIDTHS = {
     Action: '10%',
 };
 
+// Which columns the user hid, remembered per browser. MyGeotab pages share one origin, so
+// the key is namespaced. Storage can be missing or blocked (private windows), so every
+// access is guarded and the table simply shows every column then.
+const HIDDEN_COLUMNS_KEY = 'geodocs.table.columnVisibility';
+const loadColumnVisibility = () => {
+    try {
+        const saved = JSON.parse(window.localStorage.getItem(HIDDEN_COLUMNS_KEY) || '{}');
+        return saved && typeof saved === 'object' ? saved : {};
+    } catch (e) {
+        return {};
+    }
+};
+const saveColumnVisibility = (visibility) => {
+    try {
+        window.localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify(visibility));
+    } catch (e) {
+        // Not saved; the choice still holds until the page reloads.
+    }
+};
+
 const buildPages = (current, count) => {
     if (count <= 7) return Array.from({ length: count }, (_, i) => i);
     const pages = [0];
@@ -147,6 +172,9 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
     const [quickFilter, setQuickFilter] = useState(null);
     // 25 a page: most fleets then see everything without paging.
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
+    const [columnVisibility, setColumnVisibility] = useState(loadColumnVisibility);
+    const [columnsMenuAnchor, setColumnsMenuAnchor] = useState(null);
+    useEffect(() => saveColumnVisibility(columnVisibility), [columnVisibility]);
 
     // Owner columns carry the display NAMES, so filtering, sorting, suggestions and the
     // CSV export all work on what the user sees. Whether each entry is archived rides
@@ -253,8 +281,10 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
             columnFilters,
             globalFilter,
             pagination,
+            columnVisibility,
         },
         onPaginationChange: setPagination,
+        onColumnVisibilityChange: setColumnVisibility,
         // A filter that shrinks the list back to page 1 rather than an empty page 3.
         autoResetPageIndex: true,
         onColumnFiltersChange: setColumnFilters,
@@ -271,6 +301,25 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
 
     const headers = table.getHeaderGroups()[0]?.headers || [];
     const rows = table.getRowModel().rows;
+
+    // COLUMN_WIDTHS add up to 100% with every column showing; spread the hidden columns'
+    // share over the ones left.
+    const visibleWidthTotal = headers.reduce((sum, h) => sum + parseFloat(COLUMN_WIDTHS[getHeaderLabel(h)] || 0), 0) || 100;
+    const columnWidth = (label) =>
+        COLUMN_WIDTHS[label] ? `${(parseFloat(COLUMN_WIDTHS[label]) / visibleWidthTotal) * 100}%` : 'auto';
+
+    const hideableColumns = table.getAllLeafColumns().filter((c) => c.getCanHide());
+    const hiddenCount = hideableColumns.filter((c) => !c.getIsVisible()).length;
+    const toggleColumn = (col) => {
+        // A hidden column's filter would keep narrowing the list with nothing on screen
+        // to show or clear it.
+        if (col.getIsVisible()) col.setFilterValue(undefined);
+        col.toggleVisibility();
+    };
+    const columnLabel = (col) => {
+        const h = col.columnDef.header;
+        return typeof h === 'function' ? h() : h;
+    };
 
     // Active column filters, resolved to their display label, for the toolbar summary chips.
     const activeFilters = columnFilters
@@ -470,6 +519,55 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                         )}
                     </Box>
 
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Tooltip title="Show or hide columns" arrow>
+                        <IconButton
+                            aria-label="Show or hide columns"
+                            aria-haspopup="true"
+                            onClick={(e) => setColumnsMenuAnchor(e.currentTarget)}
+                            sx={{
+                                border: '1px solid',
+                                borderColor: hiddenCount ? '#26477C' : '#e5e7eb',
+                                borderRadius: '10px',
+                                bgcolor: hiddenCount ? '#eef2ff' : '#fff',
+                                color: hiddenCount ? '#26477C' : '#334155',
+                                '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+                            }}
+                        >
+                            <SettingsOutlinedIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    <Menu
+                        anchorEl={columnsMenuAnchor}
+                        open={Boolean(columnsMenuAnchor)}
+                        onClose={() => setColumnsMenuAnchor(null)}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        PaperProps={{ sx: { borderRadius: '12px', minWidth: 220, mt: 0.75 } }}
+                    >
+                        <Typography sx={{ px: 2, pt: 1, pb: 0.75, fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            Columns
+                        </Typography>
+                        {hideableColumns.map((col) => {
+                            const label = columnLabel(col);
+                            const Icon = columnIcons[label];
+                            return (
+                                <MenuItem key={col.id} onClick={() => toggleColumn(col)} sx={{ py: 0.25, pl: 1, gap: 0.75 }}>
+                                    <Checkbox size="small" checked={col.getIsVisible()} tabIndex={-1} disableRipple />
+                                    {Icon ? <Icon sx={{ fontSize: 17, color: '#64748b' }} /> : null}
+                                    <Typography sx={{ fontSize: 14, color: '#1f2937' }}>{label}</Typography>
+                                </MenuItem>
+                            );
+                        })}
+                        <Divider sx={{ my: 0.5 }} />
+                        <MenuItem
+                            disabled={!hiddenCount}
+                            onClick={() => table.toggleAllColumnsVisible(true)}
+                            sx={{ fontSize: 13.5, fontWeight: 600, color: '#26477C', justifyContent: 'center' }}
+                        >
+                            Show all columns
+                        </MenuItem>
+                    </Menu>
                     <CSVLink data={generateCSV(displayFiles)} filename={'geodoc.csv'} style={{ textDecoration: 'none' }}>
                         <Button
                             component="span"
@@ -487,6 +585,7 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                             Export CSV
                         </Button>
                     </CSVLink>
+                    </Box>
                 </Box>
 
                 {/* At-a-glance counts, each a one-click view. Hidden while a count is 0. */}
@@ -557,7 +656,7 @@ const DocumentTable = ({ files, geotabAssets, globalAlertEmail, onOrderedFilesCh
                                     return (
                                         <TableCell
                                             key={header.id}
-                                            sx={{ ...headCellSx, width: COLUMN_WIDTHS[label] || 'auto' }}
+                                            sx={{ ...headCellSx, width: columnWidth(label) }}
                                         >
                                             <Box
                                                 onClick={canSort ? col.getToggleSortingHandler() : undefined}

@@ -36,6 +36,13 @@ import Spinner from './Spinner';
 import Popup from './Popup';
 import EmailChipsInput, { splitEmails } from './EmailChipsInput';
 import DocumentTypePicker from './DocumentTypePicker';
+import BulkFileList, { ASSET_KINDS, emptyDetails, guessDetails, hasAssets } from './BulkFileList';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+
+// Files sent to the backend at once; more just queue behind the slowest (each upload is
+// a base64 body of up to several MB).
+const UPLOAD_CONCURRENCY = 3;
 
 // File types GeoDocs accepts (matches the backend validator). Setting these as the file
 // input's `accept` makes mobile pickers expose the Files/document picker (so PDFs and docs
@@ -122,6 +129,16 @@ const Uploader = ({
     const [replaceOpen, setReplaceOpen] = useState(false);
     const originalFileRef = useRef(null);
     const originalExtRef = useRef('');
+
+    // Bulk upload: each file gets its own type, assets and expiry instead of sharing one
+    // set. Keyed by the File object, which survives files being added or removed.
+    const [perFile, setPerFile] = useState(false);
+    const [fileDetails, setFileDetails] = useState(() => new Map());
+    const [uploadStatus, setUploadStatus] = useState(() => new Map());
+    const [showBulkErrors, setShowBulkErrors] = useState(false);
+    // Files that went up in an earlier attempt where others failed; handed to the table
+    // together with the rest once the retry succeeds.
+    const uploadedDocsRef = useRef([]);
 
     // Delete from the edit dialog — same backend call as the table's delete action.
     const handleDeleteFile = async () => {
@@ -339,6 +356,11 @@ const Uploader = ({
         setDocumentType('');
         setDescription('');
         setFileReplaced(false);
+        setPerFile(false);
+        setFileDetails(new Map());
+        setUploadStatus(new Map());
+        setShowBulkErrors(false);
+        uploadedDocsRef.current = [];
         const emptyData = {
             vehicles: [],
             drivers: [],
@@ -578,6 +600,71 @@ const Uploader = ({
         );
     };
 
+    const perFileMode = perFile && !editMode;
+    const detailsFor = (item) => fileDetails.get(item.file) || emptyDetails();
+
+    // New files in bulk mode start from what their names suggest.
+    useEffect(() => {
+        if (!perFileMode) return;
+        const missing = uploadFiles.filter((item) => !fileDetails.has(item.file));
+        if (!missing.length) return;
+        setFileDetails((current) => {
+            const next = new Map(current);
+            missing.forEach((item) => next.set(item.file, guessDetails(item.filename, geotabData, documentTypes)));
+            return next;
+        });
+    }, [perFileMode, uploadFiles]);
+
+    const setDetails = (item, details) =>
+        setFileDetails((current) => new Map(current).set(item.file, details));
+
+    const copyDetailsToAll = (source) => {
+        const { matched, ...picked } = detailsFor(source);
+        setFileDetails((current) => {
+            const next = new Map(current);
+            uploadFiles.forEach((item) => next.set(item.file, { ...picked, matched: [] }));
+            return next;
+        });
+    };
+
+    const removeUploadFile = (item) => setUploadFiles(uploadFiles.filter((f) => f !== item));
+
+    const setStatus = (item, status) => setUploadStatus((current) => new Map(current).set(item.file, status));
+
+    // Everything a file is saved with, from one file's own details in bulk mode or from the
+    // shared form otherwise.
+    const detailsForUpload = (item) => {
+        const normalizedAlertEmail = normalizeAlertEmailForSave(alertEmail);
+        if (!perFileMode) {
+            return {
+                ...organizeOwnersAndTags(),
+                expiryDate: expiryDate ? expiryDate.toISOString() : null,
+                documentType: documentType || null,
+                alertEmail: normalizedAlertEmail,
+            };
+        }
+        const details = detailsFor(item);
+        const owners = { vehicles: [], drivers: [], trailers: [], groups: [] };
+        const ownerNames = { vehicles: [], drivers: [], trailers: [], groups: [] };
+        const tags = [];
+        ASSET_KINDS.forEach(({ key }) => {
+            details[key].forEach((o) => {
+                owners[key].push(o.value);
+                ownerNames[key].push(o.label);
+                tags.push(o.value);
+            });
+        });
+        return {
+            owners,
+            ownerNames,
+            tags,
+            expiryDate: details.expiryDate ? details.expiryDate.toISOString() : null,
+            documentType: details.documentType || null,
+            // An alert address only means something on a file that expires.
+            alertEmail: details.expiryDate ? normalizedAlertEmail : null,
+        };
+    };
+
     const handleUpload = async () => {
         setError('');
         setErrorTitle('');
@@ -589,7 +676,17 @@ const Uploader = ({
             return;
         }
 
-        if (!isThereUploadData()) {
+        if (perFileMode) {
+            const unlinked = uploadFiles.filter((item) => !hasAssets(detailsFor(item)));
+            if (unlinked.length) {
+                setShowBulkErrors(true);
+                setErrorTitle('Add an association');
+                setError(
+                    `${unlinked.length} file${unlinked.length === 1 ? ' is' : 's are'} not linked to a vehicle, driver or trailer yet — they are marked in red.`
+                );
+                return;
+            }
+        } else if (!isThereUploadData()) {
             setErrorTitle('Add an association');
             setError(
                 'Link this file to at least one Vehicle, Driver, Trailer, or Group before uploading.'
@@ -599,25 +696,47 @@ const Uploader = ({
 
         setLoading(true);
 
-        Promise.all(
-            uploadFiles.map((file) => uploadFile(file.filename, file.file))
-        )
-            .then((docs) => {
-                setSuccess('All Files Successfully uploaded');
-                clearUploadForm();
+        // A few at a time, each reporting its own result, so one bad file doesn't hide what
+        // happened to the rest.
+        const queue = [...uploadFiles];
+        const uploaded = [];
+        const failed = [];
+        const worker = async () => {
+            while (queue.length) {
+                const item = queue.shift();
+                setStatus(item, { state: 'uploading' });
+                try {
+                    uploaded.push({ item, doc: await uploadFile(item.filename, item.file, detailsForUpload(item)) });
+                    setStatus(item, { state: 'done' });
+                } catch (err) {
+                    console.error('Upload failed:', item.filename, err);
+                    failed.push(item);
+                    setStatus(item, { state: 'failed', message: err.message });
+                }
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, worker));
 
-                onFileUploaded(docs);
+        const docs = [...uploadedDocsRef.current, ...uploaded.map((u) => u.doc)];
+        if (!failed.length) {
+            setLoading(false);
+            clearUploadForm();
+            onFileUploaded(docs);
+            setSuccess('All Files Successfully uploaded');
+            setTimeout(() => setSuccess(''), 3000);
+            return;
+        }
 
-                setTimeout(() => {
-                    setSuccess('');
-                }, 3000);
-            })
-            .catch((error) => {
-                console.log('Some failed: ', error);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
+        // Keep only the files that failed, so Upload retries just those.
+        uploadedDocsRef.current = docs;
+        setUploadFiles(failed);
+        setLoading(false);
+        setErrorTitle(failed.length === 1 ? '1 file did not upload' : `${failed.length} files did not upload`);
+        setError(
+            `${uploaded.length ? `${uploaded.length} uploaded. ` : ''}${
+                failed.length === 1 ? 'The file left in the list' : 'The files left in the list'
+            } failed — press Upload to try again.`
+        );
     };
 
     const fileToBase64 = (file) => new Promise((resolve, reject) => {
@@ -632,9 +751,8 @@ const Uploader = ({
         reader.readAsDataURL(file);
     });
 
-    const uploadFile = async (filename, file) => {
+    const uploadFile = async (filename, file, details) => {
         const base64 = await fileToBase64(file);
-        const normalizedAlertEmail = normalizeAlertEmailForSave(alertEmail);
 
         const sessionInfo = {
             database,
@@ -643,7 +761,7 @@ const Uploader = ({
             server
         };
 
-        const { owners, tags, ownerNames } = organizeOwnersAndTags();
+        const { owners, tags, ownerNames } = details;
 
         const messageBody = {
             session: sessionInfo,
@@ -654,10 +772,10 @@ const Uploader = ({
             owners: owners,
             ownerNames: ownerNames,
             tags: tags,
-            expiryDate: expiryDate ? expiryDate.toISOString() : undefined,
-            alertEmail: normalizedAlertEmail,
+            expiryDate: details.expiryDate || undefined,
+            alertEmail: details.alertEmail,
             hideFromDriver: !driverCanView,
-            documentType: documentType || undefined,
+            documentType: details.documentType || undefined,
             description: description || undefined,
         };
 
@@ -669,21 +787,22 @@ const Uploader = ({
             body:    JSON.stringify(messageBody)
             }
         );
+        // Parse defensively: a 413 or a platform error page is not JSON.
+        const responseData = await response.json().catch(() => ({}));
         if (!response.ok) {
-            const errorData = await response.json();
-
-            if (errorData.valid === false) {
+            if (responseData.valid === false) {
                onValidationError();
             }
-
-           console.error('Upload File failed: ', errorData.error ? errorData.error : '');
+            if (response.status === 413) {
+                throw new Error('This file is too large to upload.');
+            }
+            throw new Error(responseData.error || responseData.message || 'Upload failed.');
         }
-        const responseData = await response.json();
         return {
             ...responseData,
-            alertEmail: normalizedAlertEmail,
+            alertEmail: details.alertEmail,
             hideFromDriver: !driverCanView,
-            documentType: documentType || null,
+            documentType: details.documentType || null,
             description: description || null,
             ownerNames,
         };
@@ -830,8 +949,24 @@ const Uploader = ({
                     onChange={setUploadFiles}
                     accept={ACCEPTED_FILE_ACCEPT}
                     multiple
+                    showList={!perFileMode}
                 />
-                    
+                {(uploadFiles.length > 1 || perFile) && (
+                    <ToggleButtonGroup
+                        exclusive
+                        size="small"
+                        value={perFile ? 'each' : 'same'}
+                        onChange={(e, v) => v && setPerFile(v === 'each')}
+                        sx={{
+                            mt: 0.5,
+                            '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, px: 2, borderRadius: '10px' },
+                            '& .Mui-selected': { bgcolor: '#eef2ff !important', color: '#26477C !important' },
+                        }}
+                    >
+                        <ToggleButton value="same">Same details for all files</ToggleButton>
+                        <ToggleButton value="each">Different details per file</ToggleButton>
+                    </ToggleButtonGroup>
+                )}
                 </>
             ) : (
                 <Box
@@ -955,13 +1090,16 @@ const Uploader = ({
 
             {/* What this document is, from the fleet's own list, plus an optional note. */}
             <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1.25 }}>
-                <DocumentTypePicker
-                    value={documentType}
-                    onChange={setDocumentType}
-                    types={documentTypes}
-                    onAddType={onAddDocumentType}
-                    onEditTypes={onEditDocumentTypes}
-                />
+                {/* In bulk mode each file picks its own type. */}
+                {!perFileMode && (
+                    <DocumentTypePicker
+                        value={documentType}
+                        onChange={setDocumentType}
+                        types={documentTypes}
+                        onAddType={onAddDocumentType}
+                        onEditTypes={onEditDocumentTypes}
+                    />
+                )}
                 <TextField
                     size="small"
                     label="Notes (optional)"
@@ -1048,6 +1186,43 @@ const Uploader = ({
                     gap: '0.5rem',
                 }}
             >
+                {perFileMode ? (
+                <Box sx={{ ...sectionCardSx, mb: 1 }}>
+                    <Typography sx={sectionTitleSx}>
+                        {uploadFiles.length} file{uploadFiles.length === 1 ? '' : 's'} — attach each one
+                    </Typography>
+                    <BulkFileList
+                        files={uploadFiles}
+                        detailsFor={detailsFor}
+                        onChangeDetails={setDetails}
+                        onCopyToAll={copyDetailsToAll}
+                        onRemove={removeUploadFile}
+                        geotabData={geotabData}
+                        documentTypes={documentTypes}
+                        showErrors={showBulkErrors}
+                        statusFor={(item) => uploadStatus.get(item.file)}
+                    />
+                    {uploadFiles.some((item) => detailsFor(item).expiryDate) && (
+                        <EmailChipsInput
+                            value={splitEmails(alertEmail)}
+                            onChange={(emails) => setAlertEmail(emails.join(', '))}
+                            label="Expiration alert emails (files with an expiry date)"
+                            placeholder={splitEmails(alertEmail).length ? '' : 'Add email…'}
+                            rejectEmails={splitEmails(globalAlertEmail)}
+                            rejectMessage={(emails) =>
+                                `${emails.join(', ')} is the global default — it already gets every alert, so it isn't added per file.`
+                            }
+                            helperText={
+                                globalAlertEmailDisplay
+                                    ? `Default: ${globalAlertEmailDisplay} — emails added here override the default for these files.`
+                                    : 'Press Space or Enter after each address.'
+                            }
+                            sx={{ width: '100%', mt: 0.5 }}
+                        />
+                    )}
+                </Box>
+                ) : (
+                <>
                 <Box sx={sectionCardSx}>
                 <Box
                     sx={{
@@ -1246,6 +1421,8 @@ const Uploader = ({
                         </Typography>
                     )}
                 </Box>
+                </>
+                )}
                 {/* Pinned to the bottom of the dialog's scroll area, so Upload / Save is
                     always in view however tall the form gets. */}
                 <Box

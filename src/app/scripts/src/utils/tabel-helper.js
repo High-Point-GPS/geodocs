@@ -339,6 +339,8 @@ export const columns = [
         ),
         filterFn: fileFilter,
         sortingFn: fuzzySort,
+        // File and Action always show: without them a row can't be told apart or opened.
+        enableHiding: false,
     }),
     columnHelper.accessor('documentType', {
         header: () => 'Type',
@@ -404,6 +406,7 @@ export const columns = [
         cell: (info) => info.renderValue(),
         enableSorting: false,
         enableColumnFilter: false,
+        enableHiding: false,
     }),
 ];
 
