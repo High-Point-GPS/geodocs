@@ -20,6 +20,6 @@ archive.on('error', (err) => {
 archive.pipe(output);
 
 // append files from a sub-directory and naming it `new-subdir` within the archive
-archive.directory(path.join(__dirname, 'dist'), appName);
+archive.directory(path.join(__dirname, 'docs'), appName);
 
 archive.finalize();

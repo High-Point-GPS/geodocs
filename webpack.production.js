@@ -19,10 +19,12 @@ const transform = function (content, path) {
 	let config = JSON.parse(content);
 	let host = config.dev.dist.host;
 	let len = config.items.length;
-	// Appending the host to all item's url and icon
+	// Appending the host to all item's url and icon (absolute URLs are left as-is,
+	// otherwise "./" + "https://..." produces an unloadable "./https://..." URL)
+	const withHost = (u) => (/^https?:\/\//i.test(u) ? u : host + u);
 	for (let i = 0; i < len; i++) {
-		config.items[i].url = host + config.items[i].url;
-		config.items[i].icon = host + config.items[i].icon;
+		config.items[i].url = withHost(config.items[i].url);
+		config.items[i].icon = withHost(config.items[i].icon);
 	}
 
 	delete config['dev'];

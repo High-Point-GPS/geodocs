@@ -323,17 +323,19 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	const handleFileEditComplete = (id, updateDoc) => {
 		setEditFile(null);
 
+		// The stored file may have been replaced/renamed (path changes) — evict any cached
+		// preview signed URL for this doc so the next open fetches the new bytes rather than
+		// reusing the 8-min-cached old URL (which would show the old file or 404 a deleted path).
+		// Done outside the updater: updaters must stay pure (StrictMode runs them twice).
+		const existing = files.find((f) => f.id === id);
+		if (existing) invalidatePreviewCache(id, existing.path, updateDoc && updateDoc.path);
+
 		setFiles((current) => {
 		const newFiles = [...current];
 
 		const foundFileIndex = newFiles.findIndex((f) => f.id === id);
 
 		if (foundFileIndex === -1) return current;
-
-		// The stored file may have been replaced/renamed (path changes) — evict any cached
-		// preview signed URL for this doc so the next open fetches the new bytes rather than
-		// reusing the 8-min-cached old URL (which would show the old file or 404 a deleted path).
-		invalidatePreviewCache(id, newFiles[foundFileIndex].path, updateDoc && updateDoc.path);
 
 		const normalized = { ...updateDoc };
 
