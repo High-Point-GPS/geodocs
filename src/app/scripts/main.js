@@ -48,7 +48,7 @@ const handleButtonClick = async (buttonValue, api) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session: sessionInfo,
+                    session: { ...sessionInfo, sessionId: session },
                     database,
                     username
                 })

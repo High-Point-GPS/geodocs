@@ -140,7 +140,11 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 					createdUrl = URL.createObjectURL(blob);
 					nextUrl = createdUrl;
 				}
-				if (cancelled) return;
+				if (cancelled) {
+					// Cleanup already ran before this URL existed, so it can't revoke it.
+					if (createdUrl) URL.revokeObjectURL(createdUrl);
+					return;
+				}
 				setBlobUrl(nextUrl);
 			} catch (err) {
 				if (!cancelled) setError(err.message || 'Unable to load this file.');
@@ -184,7 +188,8 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
-			URL.revokeObjectURL(objUrl);
+			// Revoking synchronously can abort the download in some browsers (Firefox).
+			setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
 		} catch (e) {
 			const link = document.createElement('a');
 			link.href = blobUrl;

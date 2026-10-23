@@ -323,11 +323,12 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	const handleFileEditComplete = (id, updateDoc) => {
 		setEditFile(null);
 
-		const newFiles = [...files];
+		setFiles((current) => {
+		const newFiles = [...current];
 
 		const foundFileIndex = newFiles.findIndex((f) => f.id === id);
 
-		if (foundFileIndex === -1) return;
+		if (foundFileIndex === -1) return current;
 
 		// The stored file may have been replaced/renamed (path changes) — evict any cached
 		// preview signed URL for this doc so the next open fetches the new bytes rather than
@@ -365,7 +366,8 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 			newFiles[foundFileIndex].alertEmail = null;
 		}
 
-		setFiles([...newFiles]);
+		return newFiles;
+		});
 	};
 
 	const handleSaveGlobalAlertSettings = async () => {
@@ -549,16 +551,14 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	};
 
 	const handleFilesUploaded = (docs) => {
-		const newFiles = [...docs, ...files];
-		setFiles(newFiles);
+		setFiles((current) => [...docs, ...current]);
 	};
 
 	
 	const handleFileDeleted = (id) => {
 		const removed = files.find((file) => file.id === id);
 		invalidatePreviewCache(id, removed && removed.path);
-		const newFiles = files.filter((file) => file.id !== id);
-		setFiles(newFiles);
+		setFiles((current) => current.filter((file) => file.id !== id));
 	};
 
 	const  updateLegacyData = async(devices, drivers, trailers, creds) => {
@@ -700,7 +700,7 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	// Load devices/users/trailers/groups for uploader when API is available
 	useEffect(() => {
 		
-		if (!api || Object.keys(databaseConfig).length === 0) return;
+		if (!api || Object.keys(databaseConfig).length === 0 || databaseConfig.valid === false) return;
 		api.multiCall(
 			[
 				[
@@ -746,7 +746,11 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 				// skip the round trip entirely on every load thereafter (the backend would
 				// just no-op anyway). Only un-migrated databases pay for it, once.
 				if (!databaseConfig.updateFromLegacy) {
-					await updateLegacyData(activeDevices, activeDrivers, activeTrailers, sessionInfo);
+					try {
+						await updateLegacyData(activeDevices, activeDrivers, activeTrailers, sessionInfo);
+					} catch (err) {
+						console.error('updateLegacyData failed:', err);
+					}
 				}
 
 				// Every active asset is selectable. GeoDocs deliberately does not gate the

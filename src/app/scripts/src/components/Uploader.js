@@ -398,7 +398,8 @@ const Uploader = ({
     // Undo a pending replacement — restore the originally-loaded file/extension (kept in refs,
     // so no re-download).
     const handleUseOriginalFile = () => {
-        if (originalFileRef.current) setUploadFiles([originalFileRef.current]);
+        // Bytes not loaded yet: drop the replacement so a rename can't send its bytes.
+        setUploadFiles(originalFileRef.current ? [originalFileRef.current] : []);
         setFileExtension(originalExtRef.current);
         setFileReplaced(false);
         setReplaceOpen(false);
@@ -627,7 +628,7 @@ const Uploader = ({
         });
     };
 
-    const removeUploadFile = (item) => setUploadFiles(uploadFiles.filter((f) => f !== item));
+    const removeUploadFile = (item) => setUploadFiles((current) => current.filter((f) => f !== item));
 
     const setStatus = (item, status) => setUploadStatus((current) => new Map(current).set(item.file, status));
 
@@ -729,7 +730,9 @@ const Uploader = ({
 
         // Keep only the files that failed, so Upload retries just those.
         uploadedDocsRef.current = docs;
-        setUploadFiles(failed);
+        // Functional update: files added while the upload ran must not be dropped.
+        const uploadedItems = new Set(uploaded.map((u) => u.item));
+        setUploadFiles((current) => current.filter((f) => !uploadedItems.has(f)));
         setLoading(false);
         setErrorTitle(failed.length === 1 ? '1 file did not upload' : `${failed.length} files did not upload`);
         setError(

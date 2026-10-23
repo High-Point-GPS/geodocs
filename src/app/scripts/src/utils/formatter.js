@@ -132,12 +132,12 @@ const formatGroups = (groups) => {
 			group.children = group.children.map((child) => {
 				childGroup = groups.findIndex((g) => g.value === child.id);
 
-				if (childGroup !== -1) {
-				}
+				// A child id Geotab didn't return (e.g. no access) would crash on groups[-1].
+				if (childGroup === -1) return null;
 				groups[childGroup].isChild = true;
 				group.childrenList.push(groups[childGroup]);
 				return groups[childGroup];
-			});
+			}).filter(Boolean);
 
 			if (group.isChild === undefined) {
 				newGroups.push(group);
