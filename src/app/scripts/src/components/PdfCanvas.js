@@ -4,12 +4,30 @@ import { Document, Page, pdfjs } from 'react-pdf';
 // same-origin Blob URL below. The add-in runs inside the my.geotab.com page, so a worker
 // loaded by any URL resolves to the wrong origin and 404s ("Cannot load script"). A Blob
 // needs no external file and is same-origin, so the real worker initializes everywhere.
-import pdfWorkerSource from 'pdfjs-dist/build/pdf.worker.min.js';
+import pdfWorkerSource from 'pdfjs-dist/build/pdf.worker.min.mjs';
 import { Box, Typography } from '@mui/material';
 import Spinner from './Spinner';
 
+// pdf.js 4 uses Promise.withResolvers (Chrome 119+, Safari 17.4+). Polyfill it on the page
+// and inside the worker, which runs in its own global scope.
+const withResolversPolyfill = `if (typeof Promise.withResolvers !== 'function') {
+    Promise.withResolvers = function () {
+        let resolve, reject;
+        const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+        return { promise, resolve, reject };
+    };
+}
+`;
+if (typeof Promise.withResolvers !== 'function') {
+    Promise.withResolvers = function () {
+        let resolve, reject;
+        const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+        return { promise, resolve, reject };
+    };
+}
+
 pdfjs.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
-    new Blob([pdfWorkerSource], { type: 'text/javascript' })
+    new Blob([withResolversPolyfill, pdfWorkerSource], { type: 'text/javascript' })
 );
 
 const Fallback = ({ msg, detail }) => (

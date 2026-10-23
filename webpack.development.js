@@ -14,7 +14,7 @@ module.exports = merge(common, {
 		rules: [
 			{
 				// Inline the pdf.js worker as source text (Blob at runtime) — no separate file.
-				test: /pdf\.worker\.min\.js$/,
+				test: /pdf\.worker\.min\.m?js$/,
 				type: 'asset/source',
 			},
 			{

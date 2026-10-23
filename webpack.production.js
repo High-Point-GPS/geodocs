@@ -41,7 +41,7 @@ module.exports = merge(common, {
 			{
 				// Inline the pdf.js worker as source text (turned into a same-origin Blob
 				// at runtime) so it needs no separate file/URL inside the Geotab embed.
-				test: /pdf\.worker\.min\.js$/,
+				test: /pdf\.worker\.min\.m?js$/,
 				type: 'asset/source',
 			},
 			{
