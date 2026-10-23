@@ -75,7 +75,8 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 	const [zoom, setZoom] = useState(1);
 
 	const meta = file ? getFileTypeMeta(file.fileName) : null;
-	const isImage = meta?.kind === 'image';
+	// HEIC/HEIF are image types most browsers can't decode, so <img> would show a broken icon.
+	const isImage = meta?.kind === 'image' && !['heic', 'heif'].includes(meta.ext);
 	const isPdf = meta?.kind === 'pdf';
 
 	const hasPrev = open && index > 0;
@@ -243,6 +244,7 @@ const FilePreview = ({ files, index, onClose, onNavigate, database, session, ser
 					component="img"
 					src={blobUrl}
 					alt={file.fileName}
+					onError={() => setError('This image can’t be shown in the browser.')}
 					sx={{
 						maxWidth: '100%',
 						maxHeight: '100%',

@@ -75,6 +75,31 @@ const DocumentMobile = ({ files, geotabAssets, onOrderedFilesChange }) => {
             });
     }, [files, geotabAssets, query]);
 
+    // Export names, not Geotab ids — the same columns the desktop table exports.
+    const csvFiles = useMemo(
+        () =>
+            files.map((file) => {
+                const owners = file.owners || {};
+                const ownerNames = file.ownerNames || {};
+                const labels = (key) =>
+                    (Array.isArray(owners[key]) ? owners[key] : []).map(
+                        (id, i) =>
+                            resolveOwner(id, Array.isArray(ownerNames[key]) ? ownerNames[key][i] : undefined, geotabAssets, key)
+                                .label
+                    );
+                return {
+                    ...file,
+                    owners: {
+                        groups: collapseCompanyGroup(Array.isArray(owners.groups) ? owners.groups : []),
+                        vehicles: labels('vehicles'),
+                        drivers: labels('drivers'),
+                        trailers: labels('trailers'),
+                    },
+                };
+            }),
+        [files, geotabAssets]
+    );
+
     // Report the visible order so the shared preview's prev/next matches this list.
     const ordered = useMemo(() => cards.map((c) => c.file), [cards]);
     useEffect(() => {
@@ -106,7 +131,7 @@ const DocumentMobile = ({ files, geotabAssets, onOrderedFilesChange }) => {
                         sx: { borderRadius: '10px', bgcolor: '#fff' },
                     }}
                 />
-                <CSVLink data={generateCSV(files)} filename={'geodoc.csv'} style={{ textDecoration: 'none', flexShrink: 0 }}>
+                <CSVLink data={generateCSV(csvFiles)} filename={'geodoc.csv'} style={{ textDecoration: 'none', flexShrink: 0 }}>
                     <Button
                         component="span"
                         variant="outlined"
@@ -138,14 +163,14 @@ const DocumentMobile = ({ files, geotabAssets, onOrderedFilesChange }) => {
                         </Typography>
                     </Box>
                 ) : (
-                    cards.map(({ file, associations }) => {
+                    cards.map(({ file, associations }, cardIndex) => {
                         const state = expiryState(file.expiryDate);
                         const days = file.expiryDate ? daysUntil(file.expiryDate) : null;
                         const tone = EXPIRY_TONE[state];
                         const by = file.uploadedBy;
                         return (
                             <Box
-                                key={file.id}
+                                key={file.id != null ? file.id : `idx-${cardIndex}`}
                                 sx={{
                                     bgcolor: '#fff',
                                     border: '1px solid #e2e8f0',

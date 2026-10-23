@@ -825,13 +825,14 @@ const Uploader = ({
         const dataDrivers = (owners.drivers || []).map((d) => `${d}`);
         const dataTrailers = (owners.trailers || []).map((t) => `${t}`);
         const dataGroups = (owners.groups || []).map((g) => `${g}`);
+        const savedNames = editFile.ownerNames || {};
 
         if (dataGroups.length === 0) {
             setUploadType('uploadSelection');
             setSelections({
-                vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets)],
-                drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets)],
-                trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets)],
+                vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets, savedNames.vehicles)],
+                drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets, savedNames.drivers)],
+                trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets, savedNames.trailers)],
                 groups: [...formatOptions(dataGroups)],
             });
         } else {
@@ -845,9 +846,9 @@ const Uploader = ({
         }
 
         setUploadData({
-            vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets)],
-            drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets)],
-            trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets)],
+            vehicles: [...matchGeotabData(dataVehicles, 'vehicles', geotabData, geotabAssets, savedNames.vehicles)],
+            drivers: [...matchGeotabData(dataDrivers, 'drivers', geotabData, geotabAssets, savedNames.drivers)],
+            trailers: [...matchGeotabData(dataTrailers, 'trailers', geotabData, geotabAssets, savedNames.trailers)],
             groups: [...formatOptions(dataGroups)],
         });
 

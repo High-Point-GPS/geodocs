@@ -690,14 +690,16 @@ const App = ({ api, database, session, server, deepLinkFileId = null, onRequireE
 	// file list is in, open that file's edit dialog directly. MyGeotab passes the
 	// param via add-in state (deepLinkFileId); the hash check covers the embed page.
 	useEffect(() => {
-		if (deepLinkHandledRef.current || files.length === 0) return;
+		// Also wait for the Geotab lists: the edit form rehydrates its pickers (and the group
+		// tree) from them once, when it opens, so opening earlier showed empty selections.
+		if (deepLinkHandledRef.current || files.length === 0 || !geotabDataLoaded) return;
 		deepLinkHandledRef.current = true;
 		const hashMatch = window.location.hash.match(/[#,]fileId:([^,&/]+)/);
 		const fileId = deepLinkFileId || (hashMatch ? decodeURIComponent(hashMatch[1]) : null);
 		if (!fileId) return;
 		const target = files.find((f) => String(f.id) === fileId);
 		if (target) handeEditFile(target);
-	}, [files, deepLinkFileId]);
+	}, [files, deepLinkFileId, geotabDataLoaded]);
 
 	// Load devices/users/trailers/groups for uploader when API is available
 	useEffect(() => {

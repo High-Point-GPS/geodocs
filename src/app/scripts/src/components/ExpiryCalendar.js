@@ -29,6 +29,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 
 import FileTypeGlyph from './FileTypeGlyph';
+import { expiryState } from '../utils/tabel-helper';
 import FlatbedTrailerIcon from './FlatbedTrailerIcon';
 
 // Same icons the document table uses for these owner kinds.
@@ -179,7 +180,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabAssets, onEdit
             if (!map.has(key)) map.set(key, []);
             map.get(key).push(f);
         });
-        map.forEach((list) => list.sort((a, b) => a.fileName.localeCompare(b.fileName)));
+        map.forEach((list) => list.sort((a, b) => String(a.fileName || '').localeCompare(String(b.fileName || ''))));
 
         // Today's cell rolls up everything already expired, so its badge shows the
         // full backlog and clicking it lists today's plus all past-due documents
@@ -189,7 +190,7 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabAssets, onEdit
             .filter((f) => dayjs(f.expiryDate).isBefore(dayjs(), 'day'))
             .sort((a, b) => {
                 const byDate = dayjs(a.expiryDate).valueOf() - dayjs(b.expiryDate).valueOf();
-                return byDate !== 0 ? byDate : a.fileName.localeCompare(b.fileName);
+                return byDate !== 0 ? byDate : String(a.fileName || '').localeCompare(String(b.fileName || ''));
             });
         if (pastDue.length) {
             map.set(todayKey, [...pastDue, ...(map.get(todayKey) || [])]);
@@ -416,7 +417,8 @@ const ExpiryCalendar = ({ open, onClose, files, geotabData, geotabAssets, onEdit
                                         </Typography>
                                     ) : (
                                         selectedFiles.map((file) => {
-                                            const expired = dayjs(file.expiryDate) < dayjs();
+                                            // Same rule as the table: a document is expired from the day after its expiry date.
+                                            const expired = expiryState(file.expiryDate) === 'expired';
                                             const ownerLines = ['vehicles', 'drivers', 'trailers']
                                                 .map((kind) => ({
                                                     kind,

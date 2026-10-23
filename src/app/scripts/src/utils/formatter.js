@@ -110,11 +110,14 @@ export const ownerDisplay = (resolved, dataKey) =>
 // options, so they resolve through the asset index instead and carry an `archived` flag —
 // the flag drives how the chip renders. The label itself stays clean: the uploader stores
 // selection labels as the file's ownerNames, and a marker baked in there would persist.
-export const matchGeotabData = (dataIds, dataKey, geotabData, assetIndex) => {
-	const matchedData = dataIds.map((id) => {
+// `savedNames` is the file's stored ownerNames for this kind (aligned with dataIds): without
+// it an asset missing from the options (archived trailer, Geotab not loaded yet) came back
+// labelled with its raw id, and saving the edit overwrote the stored name with that id.
+export const matchGeotabData = (dataIds, dataKey, geotabData, assetIndex, savedNames = []) => {
+	const matchedData = dataIds.map((id, i) => {
 		const data = geotabData[dataKey].find((d) => d.value === id);
 		if (data) return data;
-		const resolved = resolveOwner(id, null, assetIndex, dataKey);
+		const resolved = resolveOwner(id, Array.isArray(savedNames) ? savedNames[i] : null, assetIndex, dataKey);
 		return { label: resolved.label, value: id, archived: resolved.archived };
 })
 return matchedData;

@@ -290,6 +290,18 @@ const fuzzySort = (rowA, rowB, columnId) => {
     return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
 };
 
+// Expiry values are ISO strings (or legacy date strings); compare as instants so the
+// order is chronological whatever the format, with "No expiry" after every date.
+const dateSort = (rowA, rowB, columnId) => {
+    const t = (v) => {
+        const ms = v == null || v === '' ? NaN : dayjs(v).valueOf();
+        return Number.isNaN(ms) ? Infinity : ms;
+    };
+    const a = t(rowA.getValue(columnId));
+    const b = t(rowB.getValue(columnId));
+    return a === b ? 0 : a < b ? -1 : 1;
+};
+
 // Owner columns hold arrays; the default alphanumeric sort stringifies arrays to ''
 // (so every row ties). Join to a real string before comparing.
 const ownersSort = (rowA, rowB, columnId) => {
@@ -399,7 +411,7 @@ export const columns = [
         header: () => 'Expiry Date',
         cell: (info) => <ExpiryCell value={info.renderValue()} />,
         filterFn: expiryFilter,
-        sortingFn: fuzzySort,
+        sortingFn: dateSort,
     }),
     columnHelper.accessor('action', {
         header: () => 'Action',
@@ -429,6 +441,7 @@ export const globalStringFilter = (row, _, filterValue) => {
         if (cell.column.id === 'action') return false;
         let cellValue = cell.getValue();
         if (cellValue == null) return false;
+        if (cell.column.id === 'expiryDate') return expiryFilter(row, 'expiryDate', filterValue);
         if (Array.isArray(cellValue)) {
             cellValue = cellValue.join(' ');
         }
